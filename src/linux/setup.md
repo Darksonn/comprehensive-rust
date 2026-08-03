@@ -122,7 +122,7 @@ make LLVM=1 kvm_guest.config
 ./scripts/config --enable CONFIG_RUST
 ./scripts/config --enable CONFIG_SAMPLES
 ./scripts/config --enable CONFIG_SAMPLES_RUST
-./scripts/config --module SAMPLE_RUST_MISC_DEVICE
+./scripts/config --module SAMPLE_RUST_MINIMAL
 
 # Enable 9p filesystem support (required for sharing hostshare via /mnt):
 ./scripts/config --enable CONFIG_NET_9P
@@ -181,47 +181,10 @@ cd /mnt/linux
 uname -r
 
 # Load the sample miscdevice driver and test reading from it:
-insmod samples/rust/rust_misc_device.ko
-ls -l /dev/rust-misc-device
-cat /dev/rust-misc-device
-```
+insmod samples/rust/rust_minimal.ko
+rmmod rust_minimal
 
-### 5.1 Compiling a User-Space C Test Program
-
-While inside the VM at `/mnt`, create a simple C test program (`test_miscdev.c`) directly in your shared workspace:
-
-<!-- mdbook-xgettext: skip -->
-
-```bash
-cat << 'EOF' > /mnt/test_miscdev.c
-// test_miscdev.c
-#include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
-
-int main() {
-    int fd = open("/dev/rust-misc-device", O_RDWR);
-    if (fd < 0) {
-        perror("open");
-        return 1;
-    }
-    printf("Successfully opened /dev/rust-misc-device! fd = %d\n", fd);
-    close(fd);
-    return 0;
-}
-EOF
-```
-
-Compile and execute the test program inside the VM, then cleanly power off:
-
-<!-- mdbook-xgettext: skip -->
-
-```bash
-cd /mnt
-gcc test_miscdev.c -o test_miscdev
-./test_miscdev
-
-# Power off the VM and return cleanly to your host terminal:
+# Exit the virtual machine
 poweroff
 ```
 
