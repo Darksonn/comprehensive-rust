@@ -59,6 +59,13 @@ For the microcontroller part, you will need to buy the
 Everybody will need to install a number of packages as described on the
 [welcome page](../bare-metal.md).
 
+### Rust for Linux
+
+The [Rust for Linux](../linux/welcome.md) deep dive is a two-day course on using
+Rust for Linux kernel module and driver development.
+
+{{%course outline Rust for Linux}}
+
 ### Concurrency in Rust
 
 The [Concurrency in Rust](../concurrency/welcome.md) deep dive is a full day

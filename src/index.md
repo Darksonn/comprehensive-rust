@@ -43,6 +43,8 @@ Building on this, you're invited to dive into one or more specialized topics:
 - [Bare-metal](bare-metal.md): a whole-day class on using Rust for bare-metal
   (embedded) development. Both microcontrollers and application processors are
   covered.
+- [Rust for Linux](linux/welcome.md): a two-day course on using Rust for Linux
+  kernel development, covering kernel modules, safe abstractions, and driver development.
 - [Concurrency](concurrency/welcome.md): a whole-day class on concurrency in
   Rust. We cover both classical concurrency (preemptively scheduling using
   threads and mutexes) and async/await concurrency (cooperative multitasking

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 440" width="100%" height="100%">
+  <defs>
+    <style>
+      .title { font-family: sans-serif; font-size: 20px; font-weight: bold; fill: #1e293b; text-anchor: middle; }
+      .card-title { font-family: sans-serif; font-size: 16px; font-weight: bold; fill: #0f172a; text-anchor: middle; }
+      .card-sub { font-family: sans-serif; font-size: 13px; font-weight: bold; fill: #475569; text-anchor: middle; }
+      .item { font-family: sans-serif; font-size: 13px; fill: #334155; }
+      .code { font-family: monospace; font-size: 12px; fill: #1e293b; text-anchor: middle; }
+      .arrow-label { font-family: sans-serif; font-size: 12px; font-weight: bold; fill: #475569; text-anchor: middle; }
+      .box-user { fill: #eff6ff; stroke: #3b82f6; stroke-width: 2; rx: 8; }
+      .box-driver { fill: #f0fdf4; stroke: #10b981; stroke-width: 2; rx: 8; }
+      .box-hw { fill: #f5f3ff; stroke: #8b5cf6; stroke-width: 2; rx: 8; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#3b82f6" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="420" y="35" class="title">Linux Driver Architecture: Bridging Class &amp; Bus Devices</text>
+
+  <!-- COLUMN 1: User Space & Class Device (Left) -->
+  <!-- User Space Box -->
+  <rect x="30" y="65" width="230" height="85" class="box-user" />
+  <text x="145" y="90" class="card-title">User Space Application</text>
+  <text x="145" y="112" class="code">open("/dev/my_hw_dev")</text>
+  <text x="145" y="132" class="code">ioctl(), read(), write()</text>
+
+  <!-- Arrow: User Space -> Class Device -->
+  <line x1="145" y1="150" x2="145" y2="215" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)" />
+  <text x="145" y="188" class="arrow-label">Syscall Requests</text>
+
+  <!-- Class Device Box -->
+  <rect x="30" y="225" width="230" height="180" class="box-user" />
+  <text x="145" y="250" class="card-title">Class Device</text>
+  <text x="145" y="268" class="card-sub">(miscdevice, chrdev, drm, block)</text>
+  <text x="50" y="298" class="item">• Logical /dev interface</text>
+  <text x="50" y="322" class="item">• Syscall Vtable (#[vtable])</text>
+  <text x="50" y="346" class="item">• open(), read_iter(), write()</text>
+  <text x="50" y="370" class="item">• User space facing</text>
+  <text x="145" y="392" class="code">MiscDeviceRegistration</text>
+
+  <!-- COLUMN 2: Rust Driver Private Data (Center) -->
+  <rect x="305" y="110" width="230" height="240" class="box-driver" />
+  <text x="420" y="140" class="card-title">Rust Kernel Driver</text>
+  <text x="420" y="158" class="card-sub">(Driver Private Data)</text>
+  <text x="325" y="190" class="item">• Bridges User &amp; HW Bus</text>
+  <text x="325" y="218" class="item">• MMIO Register Mappings</text>
+  <text x="325" y="246" class="item">• Mutex&lt;T&gt; / SpinLock&lt;T&gt;</text>
+  <text x="325" y="274" class="item">• Pinned Initialization</text>
+  <text x="325" y="302" class="item">• RAII Guard Management</text>
+  <text x="420" y="332" class="code">impl PinInit&lt;Self, Error&gt;</text>
+
+  <!-- Left/Right Horizontal Arrows connecting Class Device and Bus Device to Driver -->
+  <!-- Class Device <-> Driver Private Data -->
+  <line x1="260" y1="315" x2="305" y2="315" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)" marker-start="url(#arrow-green)" />
+  <text x="282" y="305" class="arrow-label" font-size="10px">Access State</text>
+
+  <!-- Bus Device -> Driver Private Data -->
+  <line x1="580" y1="135" x2="535" y2="135" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)" />
+  <text x="558" y="125" class="arrow-label" font-size="10px">probe()</text>
+
+  <!-- COLUMN 3: Bus Device & Hardware (Right) -->
+  <!-- Bus Device Box -->
+  <rect x="580" y="65" width="230" height="150" class="box-hw" />
+  <text x="695" y="90" class="card-title">Bus Device</text>
+  <text x="695" y="108" class="card-sub">(pci, platform, usb)</text>
+  <text x="600" y="138" class="item">• Bus Enumeration</text>
+  <text x="600" y="162" class="item">• ID Table Matching</text>
+  <text x="600" y="186" class="item">• Lifecycle: probe() / remove()</text>
+  <text x="695" y="202" class="code">kernel::platform::Driver</text>
+
+  <!-- Arrow: Bus Device -> Hardware -->
+  <line x1="695" y1="215" x2="695" y2="275" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)" />
+  <text x="695" y="250" class="arrow-label">HW I/O (MMIO, IRQ, DMA)</text>
+
+  <!-- Physical Hardware Box -->
+  <rect x="580" y="275" width="230" height="130" class="box-hw" />
+  <text x="695" y="300" class="card-title">Physical Hardware</text>
+  <text x="695" y="318" class="card-sub">(Device Tree / ACPI)</text>
+  <text x="600" y="348" class="item">• Physical / Virtual Device</text>
+  <text x="600" y="372" class="item">• Memory Mapped Registers</text>
+  <text x="600" y="394" class="item">• Hardware Interrupt Lines</text>
+</svg>
