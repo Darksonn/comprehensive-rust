@@ -19,7 +19,3 @@ SPDX-License-Identifier: CC-BY-4.0
 4. Define a `drivers/alice/rust_alice.rs` file containing a Rust module.
 5. Build the kernel with your driver.
 6. Boot QEMU and load your driver.
-
-**Follow-up exercise:** Create a second file `drivers/alice/numbers.rs`
-containing a function that creates the numbers `KVec<i32>` value. Include it in
-your build to create a multi-file driver.
