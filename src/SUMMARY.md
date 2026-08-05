@@ -400,33 +400,18 @@ SPDX-License-Identifier: CC-BY-4.0
   - [Exercise: Add a second file](linux/byod2.md)
   - [Solution: Add a second file](linux/byod-solution2.md)
   - [Other build options](linux/build-opts.md)
-- [Kernel Modules](linux/kernel-modules.md)
-- [Kernel Error Handling](linux/error-handling.md)
-- [Driver Models & Upstreaming](linux/ecosystem.md)
 
 # Rust for Linux: Day 1 Afternoon
 
 - [Welcome](linux/welcome-day-1-afternoon.md)
-- [Kernel Pointers](linux/pointers.md)
-- [Pinned Initialization](linux/pin-init.md)
-- [Kernel Abstractions](linux/kernel-abstractions.md)
 
 # Rust for Linux: Day 2 Morning
 
 - [Welcome](linux/welcome-day-2.md)
-- [Synchronization](linux/synchronization.md)
-- [C FFI & Helpers](linux/ffi.md)
-- [Device Drivers](linux/drivers.md)
-- [Character Devices](linux/chrdev.md)
 
 # Rust for Linux: Day 2 Afternoon
 
 - [Welcome](linux/welcome-day-2-afternoon.md)
-- [The Device Model](linux/device-model.md)
-- [Platform Drivers](linux/platform-drivers.md)
-- [Exercise: Miscdevice Driver](exercises/linux/miscdev.md)
-  - [Solution](exercises/linux/solutions.md)
-- [Advanced Topics](linux/advanced-topics.md)
 
 ---
 
