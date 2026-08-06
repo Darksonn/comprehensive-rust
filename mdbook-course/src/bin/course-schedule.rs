@@ -56,7 +56,7 @@ fn timediff(actual: u64, target: u64, slop: u64) -> String {
 fn session_summary(courses: &Courses) {
     for course in courses {
         if course.target_minutes() == 0 {
-            return;
+            continue;
         }
         for session in course {
             println!("### {} // {}", course.name, session.name);

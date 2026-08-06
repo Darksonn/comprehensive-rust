@@ -404,6 +404,8 @@ SPDX-License-Identifier: CC-BY-4.0
 # Rust for Linux: Day 1 Afternoon
 
 - [Welcome](linux/welcome-day-1-afternoon.md)
+- [The Driver Model](linux/driver-model.md)
+  - [Driver Lifecycle](linux/driver-lifecycle.md)
 
 # Rust for Linux: Day 2 Morning
 

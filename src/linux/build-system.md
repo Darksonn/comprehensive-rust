@@ -1,5 +1,5 @@
 ---
-minutes: 35
+minutes: 20
 ---
 
 <!--
