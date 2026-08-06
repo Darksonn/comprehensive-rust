@@ -397,8 +397,6 @@ SPDX-License-Identifier: CC-BY-4.0
   - [Building Rust code](linux/build-system.md)
   - [Exercise: Build your own driver](linux/byod.md)
   - [Solution: Build your own driver](linux/byod-solution.md)
-  - [Exercise: Add a second file](linux/byod2.md)
-  - [Solution: Add a second file](linux/byod-solution2.md)
   - [Other build options](linux/build-opts.md)
 
 # Rust for Linux: Day 1 Afternoon

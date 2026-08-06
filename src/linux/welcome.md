@@ -1,7 +1,7 @@
 ---
 course: Rust for Linux
 session: Day 1 Morning
-target_minutes: 180
+target_minutes: 120
 ---
 
 <!--
