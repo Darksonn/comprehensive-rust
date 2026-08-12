@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - rfl
   workflow_dispatch:
 
 permissions:
