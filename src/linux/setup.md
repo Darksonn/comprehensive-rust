@@ -43,8 +43,8 @@ We recommend creating a dedicated workspace directory (`~/learn-rust`) and cloni
 ```bash
 mkdir -p ~/learn-rust && cd ~/learn-rust
 
-# Clone the kernel source tree:
-git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+# Clone the development kernel branch for the course:
+git clone --branch rfl-course-edu https://github.com/Darksonn/linux.git
 ```
 
 To build a reusable Debian Bookworm disk image with `build-essential` (`gcc`, `make`) pre-installed and automatic 9p workspace mounting, save the following script as `create-image.sh` in your workspace directory (`~/learn-rust`) and run it:
