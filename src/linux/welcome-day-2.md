@@ -1,6 +1,6 @@
 ---
 session: Day 2 Morning
-target_minutes: 180
+target_minutes: 120
 ---
 
 <!--
@@ -12,7 +12,11 @@ SPDX-License-Identifier: CC-BY-4.0
 
 Welcome to Day 2 of Rust for Linux!
 
-In the morning session of Day 2, we focus on device driver architecture in the Linux kernel and implementing character devices in Rust.
+In the morning session of Day 2, we focus on safe C abstractions and interacting with hardware buses. We will cover:
+- How the build system generates bindings with `bindgen`.
+- Handling `static inline` C functions via helpers.
+- The PCI subsystem.
+- Memory-Mapped I/O (MMIO) and register access.
 
 ## Schedule
 

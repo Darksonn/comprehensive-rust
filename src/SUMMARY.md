@@ -404,14 +404,39 @@ SPDX-License-Identifier: CC-BY-4.0
 - [Welcome](linux/welcome-day-1-afternoon.md)
 - [The Driver Model](linux/driver-model.md)
   - [Driver Lifecycle](linux/driver-lifecycle.md)
+- [Kernel Allocations](linux/allocations.md)
+  - [Allocation Failure](linux/alloc-failure.md)
+  - [Allocator Flags](linux/alloc-flags.md)
+  - [Multiple Allocators](linux/alloc-multiple.md)
+- [Mutexes & Synchronization](linux/mutex.md)
+  - [Mutex Guards](linux/mutex-guard.md)
+  - [Early Lock Release](linux/mutex-guard-drop.md)
+  - [Mutexes vs. Spinlocks](linux/mutex-spinlock.md)
+- [Pinned Initialization](linux/pin-init.md)
+  - [Mutex Initialization](linux/pin-init-mutex.md)
+  - [In-Place Initialization](linux/pin-init-solution.md)
+- [Character Devices](linux/miscdev-walkthrough.md)
+  - [Exercise: Shared IPC Message Board](linux/miscdev-exercise.md)
+  - [Solution: Shared IPC Message Board](linux/miscdev-solution.md)
 
 # Rust for Linux: Day 2 Morning
 
 - [Welcome](linux/welcome-day-2.md)
+- [Kernel Abstractions](linux/c-abstractions.md)
+  - [Generating Bindings with bindgen](linux/bindgen.md)
+  - [Static Inline Functions](linux/static-inline.md)
+  - [Case Study: Credentials](linux/c-abstractions-cred.md)
+- [The PCI Subsystem](linux/pci.md)
+  - [Exposing Class Devices](linux/pci-class.md)
+- [Memory-Mapped I/O](linux/mmio.md)
 
 # Rust for Linux: Day 2 Afternoon
 
 - [Welcome](linux/welcome-day-2-afternoon.md)
+- [Interrupts](linux/interrupts.md)
+- [Direct Memory Access (DMA)](linux/dma.md)
+- [Exercise: QEMU EDU PCI Driver](linux/pci-exercise.md)
+- [Solution: QEMU EDU PCI Driver](linux/pci-solution.md)
 
 ---
 

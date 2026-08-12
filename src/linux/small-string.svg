@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 290" width="100%" height="100%">
+  <defs>
+    <style>
+      .title { font-family: sans-serif; font-size: 15px; font-weight: bold; fill: #0f172a; text-anchor: middle; }
+      .addr-label { font-family: monospace; font-size: 12px; fill: #64748b; }
+      .field-title { font-family: monospace; font-size: 13px; font-weight: bold; fill: #1e293b; }
+      .field-val { font-family: monospace; font-size: 12px; fill: #334155; }
+      .annot { font-family: sans-serif; font-size: 13px; fill: #dc2626; font-weight: bold; }
+      .box-struct { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; rx: 6; }
+      .box-field { fill: #eff6ff; stroke: #3b82f6; stroke-width: 1.5; rx: 4; }
+      .box-field-data { fill: #f0fdf4; stroke: #10b981; stroke-width: 1.5; rx: 4; }
+    </style>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#3b82f6" />
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b" />
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626" />
+    </marker>
+  </defs>
+
+  <!-- Left Column: Inside new() on Stack -->
+  <text x="190" y="30" class="title">1. Inside new() (Stack Address 0x1000)</text>
+
+  <!-- Container for SmallString at Address 0x1000 -->
+  <rect x="40" y="55" width="300" height="180" class="box-struct" />
+  <text x="55" y="78" class="addr-label">Address: 0x1000 (result)</text>
+
+  <!-- ptr field -->
+  <rect x="60" y="95" width="260" height="50" class="box-field" />
+  <text x="75" y="115" class="field-title">ptr: *const u8</text>
+  <text x="75" y="133" class="field-val">= 0x1008 (&amp;data)</text>
+
+  <!-- data field -->
+  <rect x="60" y="165" width="260" height="50" class="box-field-data" />
+  <text x="75" y="185" class="field-title">data: [u8; 8]  (at 0x1008)</text>
+  <text x="75" y="203" class="field-val">= b"hello\0\0\0"</text>
+
+  <!-- Pointer Arrow from ptr to data -->
+  <path d="M 320 120 C 365 120, 365 190, 320 190" fill="none" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrow-blue)" />
+
+  <!-- Move Arrow in Middle -->
+  <path d="M 380 145 L 460 145" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-slate)" />
+  <text x="420" y="135" class="title" font-size="12px" fill="#64748b">Move</text>
+
+  <!-- Right Column: After return (Moved to 0x5000) -->
+  <text x="650" y="30" class="title">2. After Return (Moved to 0x5000)</text>
+
+  <!-- Container for SmallString moved to 0x5000 -->
+  <rect x="500" y="55" width="300" height="180" class="box-struct" />
+  <text x="515" y="78" class="addr-label">Address: 0x5000 (moved value)</text>
+
+  <!-- ptr field (still 0x1008!) -->
+  <rect x="520" y="95" width="260" height="50" class="box-field" stroke="#dc2626" />
+  <text x="535" y="115" class="field-title">ptr: *const u8</text>
+  <text x="535" y="133" class="field-val" fill="#dc2626">= 0x1008 (Dangling pointer!)</text>
+
+  <!-- data field (now at 0x5008) -->
+  <rect x="520" y="165" width="260" height="50" class="box-field-data" />
+  <text x="535" y="185" class="field-title">data: [u8; 8]  (at 0x5008)</text>
+  <text x="535" y="203" class="field-val">= b"hello\0\0\0"</text>
+
+  <!-- Broken / Dangling Pointer Arrow from ptr (at 0x5000) back to old stack data (at 0x1008) -->
+  <path d="M 520 120 C 410 120, 390 205, 320 195" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow-red)" />
+
+  <!-- Annotation at bottom -->
+  <text x="420" y="268" class="annot" text-anchor="middle">⚠️ ptr still points to the old memory address (0x1008) instead of the new location (0x5008)!</text>
+</svg>
