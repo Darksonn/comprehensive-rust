@@ -23,14 +23,15 @@ When picking a second language for the Linux kernel, it must be able to match C 
 
 ## A "Spiral Approach" to Learning
 
-We start Day 1 Morning by compiling, loading, and inspecting a simplified, static version of a character device driver from the kernel source tree (`samples/rust/rust_misc_device.rs`), where we omit the mutex and store static data to focus on driver registration and file operations.
+We start Day 1 Morning by compiling, loading, and inspecting a minimal kernel module (`samples/rust/rust_minimal.rs`) to understand the basic structure of a Rust module, module parameters, and the kernel build system.
 
-Over the four sessions of the course, we systematically unpack the kernel concepts used in that sample driver:
+Over the four sessions of the course, we systematically build up to writing full device drivers:
 
-- **Day 1 Morning:** Why Rust in Linux, kernel error handling (`Result`, `?`), and building minimal modules (`module!`, `kernel::Module`).
-- **Day 1 Afternoon:** Why kernel pointer types (`KBox`, `KVBox`, `Arc`, `ARef`) and pinned initialization (`pin-init`, `try_pin_init!`) are required for kernel memory.
-- **Day 2 Morning:** Kernel locking rules (`Mutex`, `SpinLock`), C FFI (`bindings_helper.h` and `rust/helpers/`), and character device file operations.
-- **Day 2 Afternoon:** The Linux Device Model (bus vs. class devices) and writing your own custom `miscdevice` driver from scratch.
+- **Day 1 Morning:** Why Rust in Linux, kernel error handling (`Result`, `?`), building minimal modules (`module!`, `kernel::Module`), and setting up the QEMU test environment.
+- **Day 1 Afternoon:** Kernel allocations (`KBox`, `KVec`), mutexes and synchronization, pinned initialization (`pin-init`), and writing a shared IPC character device driver (`miscdevice`).
+- **Day 2 Morning:** Generating bindings with `bindgen`, handling static inline C functions, C FFI abstractions case study, the PCI subsystem, and Memory-Mapped I/O (MMIO).
+- **Day 2 Afternoon:** Interrupt handling (`irq::Handler`) and writing a QEMU EDU PCI DRM driver.
+
 
 ## Schedule
 

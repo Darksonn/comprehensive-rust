@@ -10,10 +10,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Day 2 Afternoon
 
-In the afternoon session of Day 2, we dive into hardware events, memory sharing, and write a full PCI device driver. We will cover:
+In the afternoon session of Day 2, we dive into hardware events and write a full PCI device driver. We will cover:
 - Interrupt Handling (MSI vectors).
-- Direct Memory Access (DMA) and coherent allocations.
 - A hands-on exercise to write a PCI driver for the QEMU `edu` device.
+
 
 ## Schedule
 
