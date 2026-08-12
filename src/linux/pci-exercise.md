@@ -39,6 +39,12 @@ Once booted, verify that the device is detected on the PCIe bus:
 lspci -d 1234:11e8 -v
 ```
 
+If `lspci` is not available, you can verify via `sysfs`:
+
+```bash
+grep -H 0x11e8 /sys/bus/pci/devices/*/device
+```
+
 ---
 
 ## Hardware Register Map

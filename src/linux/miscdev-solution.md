@@ -19,7 +19,8 @@ Here is a complete solution implementing a shared IPC message board driver using
 use kernel::prelude::*;
 use kernel::sync::{new_mutex, Arc, Mutex};
 use kernel::task::Task;
-use kernel::uaccess::{UserSliceReader, UserSliceWriter};
+use kernel::fs::{File, Kiocb};
+use kernel::iov::{IovIterDest, IovIterSource};
 use kernel::miscdevice::{MiscDevice, MiscDeviceOptions, MiscDeviceRegistration};
 
 module! {
@@ -40,56 +41,75 @@ struct SharedState {
     inner: Mutex<Inner>,
 }
 
+#[pin_data]
 struct FileContext {
     shared: Arc<SharedState>,
 }
 
 #[vtable]
 impl MiscDevice for FileContext {
-    type Ptr = KBox<Self>;
+    type Data = Arc<SharedState>;
+    type Ptr = Pin<KBox<Self>>;
 
-    fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<KBox<Self>> {
-        // Retrieve the shared state reference from the registration or static context:
-        let shared = Arc::clone(misc.as_ref());
-        KBox::new(FileContext { shared }, GFP_KERNEL)
+    fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Pin<KBox<Self>>> {
+        let shared = Arc::clone(misc.data());
+        KBox::try_pin_init(
+            try_pin_init!(FileContext { shared }),
+            GFP_KERNEL,
+        )
     }
 
-    fn write(context: &FileContext, _file: &File, reader: &mut UserSliceReader, _offset: u64) -> Result<usize> {
-        let len = reader.len();
+    fn write_iter(mut kiocb: Kiocb<'_, Self::Ptr>, iov: &mut IovIterSource<'_>) -> Result<usize> {
+        let me = kiocb.file();
         let mut data = KVec::new();
-        data.resize(len, 0, GFP_KERNEL)?;
-        reader.read_slice(&mut data)?;
+        iov.copy_from_iter_vec(&mut data, GFP_KERNEL)?;
 
-        let pid = Task::current().pid();
+        // SAFETY: We only use the current task to get the PID in the sync context of write_iter,
+        // and we do not store the returned task reference.
+        let pid = unsafe { Task::current() }.pid();
 
-        let mut guard = context.shared.inner.lock();
+        // Format prefix onto stack
+        let mut buf = [0u8; 32];
+        let mut formatter = kernel::str::Formatter::new(&mut buf);
+        use core::fmt::Write;
+        let _ = write!(formatter, "[PID {}]: ", pid);
+        let prefix_len = formatter.bytes_written();
+        let prefix = &buf[..prefix_len];
+
+        let mut guard = me.shared.inner.lock();
         // Clear previous message and format new message with PID prefix:
         guard.buffer.clear();
-        use core::fmt::Write;
-        let _ = write!(guard.buffer, "[PID {}]: ", pid);
+        guard.buffer.extend_from_slice(prefix, GFP_KERNEL)?;
         guard.buffer.extend_from_slice(&data, GFP_KERNEL)?;
 
-        Ok(len)
+        // Reset position on write
+        *kiocb.ki_pos_mut() = 0;
+
+        Ok(data.len())
     }
 
-    fn read(context: &FileContext, _file: &File, writer: &mut UserSliceWriter, offset: u64) -> Result<usize> {
-        let guard = context.shared.inner.lock();
+    fn read_iter(mut kiocb: Kiocb<'_, Self::Ptr>, iov: &mut IovIterDest<'_>) -> Result<usize> {
+        let me = kiocb.file();
+        let guard = me.shared.inner.lock();
         let buf_len = guard.buffer.len();
 
+        let offset = kiocb.ki_pos();
         if offset as usize >= buf_len {
             return Ok(0); // EOF
         }
 
         let slice = &guard.buffer[offset as usize..];
-        let to_copy = core::cmp::min(writer.len(), slice.len());
+        let to_copy = core::cmp::min(iov.len(), slice.len());
 
         // Clone slice to release the mutex before interacting with user space:
         let mut temp = KVec::new();
         temp.extend_from_slice(&slice[..to_copy], GFP_KERNEL)?;
         drop(guard);
 
-        writer.write_slice(&temp)?;
-        Ok(to_copy)
+        let num_written = iov.copy_to_iter(&temp);
+        *kiocb.ki_pos_mut() += num_written as i64;
+
+        Ok(num_written)
     }
 }
 
@@ -111,7 +131,8 @@ impl kernel::Module for IpcModule {
         )?;
 
         let options = MiscDeviceOptions {
-            name: c_str!("rust_ipc"),
+            name: c"rust_ipc",
+            parent: None,
         };
 
         let reg = KBox::try_pin_init(

@@ -68,7 +68,7 @@ mount -o loop "$IMG" "$DIR"
 
 echo "Installing minimal Debian ($DISTRO) with debootstrap..."
 debootstrap --arch=amd64 \
-    --include=build-essential,kmod,udev,procps,strace,gdb,vim \
+    --include=build-essential,kmod,udev,procps,strace,gdb,vim,nano,pciutils \
     "$DISTRO" "$DIR" http://deb.debian.org/debian/
 
 echo "Configuring hostname, fstab, and serial console autologin..."
@@ -91,6 +91,10 @@ EOF
 echo "Unmounting image..."
 umount "$DIR"
 rmdir "$DIR"
+
+if [ -n "${SUDO_USER:-}" ]; then
+    chown "$SUDO_USER" "$IMG"
+fi
 
 echo "Success! Created $IMG ready for QEMU."
 ```
