@@ -256,33 +256,32 @@ impl pci::Driver for EduDriver {
         probe_pdev: &'bound pci::Device<Core<'_>>,
         _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
-        pin_init::pin_init_scope(move || {
-            dev_info!(
-                probe_pdev,
-                "Probe QEMU EDU PCI DRM driver sample (PCI ID: {}, 0x{:x}).\n",
-                probe_pdev.vendor_id(),
-                probe_pdev.device_id()
-            );
+        dev_info!(
+            probe_pdev,
+            "Probe QEMU EDU PCI DRM driver sample (PCI ID: {}, 0x{:x}).\n",
+            probe_pdev.vendor_id(),
+            probe_pdev.device_id()
+        );
 
-            // TODO: Enable PCI device memory space using enable_device_mem().
-            // TODO: Set PCI device master using set_master().
+        // TODO: Enable PCI device memory space using enable_device_mem().
+        // TODO: Set PCI device master using set_master().
 
-            // TODO: Map BAR 0 (size 0x80) using iomap_region_sized.
+        // TODO: Map BAR 0 (size 0x80) using iomap_region_sized.
 
-            // TODO: Create UnregisteredDevice.
+        // TODO: Create UnregisteredDevice.
 
-            // TODO: Allocate 1 IRQ vector and get the vector.
+        // TODO: Allocate 1 IRQ vector and get the vector.
 
-            // TODO: Request IRQ using request_irq (marked unsafe, needs safety comment!).
-            // Pass EduIrqHandler initialized with probe_pdev and bar.
+        // TODO: Request IRQ using request_irq (marked unsafe, needs safety comment!).
+        // Pass EduIrqHandler initialized with probe_pdev and bar.
 
-            // TODO: Create EduRegistrationData reg_data containing _irq <- irq_init.
+        // TODO: Create EduRegistrationData reg_data containing _irq <- irq_init.
 
-            // TODO: Create drm::Registration.
+        // TODO: Create drm::Registration.
 
-            // TODO: Return EduDriverData containing _reg.
-            Err(ENODEV) // Replace with Ok(...) once implemented
-        })
+        // TODO: Return EduDriverData containing _reg.
+        // Hint: You will need to use `pin_init::pin_init_scope` to initialize the driver data.
+        Err(ENODEV)
     }
 }
 
