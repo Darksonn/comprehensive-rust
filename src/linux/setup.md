@@ -78,6 +78,9 @@ cat <<EOF > "$DIR/etc/fstab"
 /dev/root / ext4 defaults 0 0
 hostshare /mnt 9p trans=virtio,version=9p2000.L,defaults 0 0
 EOF
+# Configure eth0 for DHCP (requires net.ifnames=0 in QEMU boot args)
+echo -e "\nauto eth0\niface eth0 inet dhcp" >> "$DIR/etc/network/interfaces"
+
 
 # Allow passwordless root login on the serial console (ttyS0)
 sed -i 's/^root:[^:]*:/root::/' "$DIR/etc/shadow"
@@ -164,7 +167,7 @@ qemu-system-x86_64 \
     -machine q35,acpi=on \
     -kernel linux/arch/x86/boot/bzImage \
     -drive file=debian.img,format=raw,if=virtio \
-    -append "root=/dev/vda console=ttyS0 acpi=force" \
+    -append "root=/dev/vda console=ttyS0 acpi=force net.ifnames=0" \
     -nographic \
     -no-reboot \
     -m 2G -smp 2 \

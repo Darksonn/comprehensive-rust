@@ -40,19 +40,16 @@ impl<'bound> irq::Handler for EduIrqHandler<'bound> {
     }
 }
 
-// 2. Request and register the IRQ in probe():
+// 2. Request and register the IRQ:
 fn register_irq<'bound>(
     pdev: &'bound pci::Device<Core<'_>>,
+    vector: pci::IrqVector<'bound>,
     bar: pci::Bar<'bound, { regs::END }>,
-) -> Result<irq::Registration<'bound, EduIrqHandler<'bound>>> {
-    // Allocate 1 MSI/MSI-X vector:
-    let vectors = pdev.alloc_irq_vectors(1, 1, pci::IrqTypes::all())?;
-    let vector = *vectors.start();
-
-    // SAFETY: We promise to store the returned Registration in a struct
-    // (like EduDriverData or DRM RegistrationData) that is dropped on unbind,
-    // ensuring it is never leaked/forgotten.
-    let irq_init = unsafe {
+) -> impl PinInit<irq::Registration<'bound, EduIrqHandler<'bound>>, Error> + 'bound {
+    // SAFETY: The caller must ensure that the returned Registration is stored
+    // in a structure that is dropped when the device is unbound, and not leaked (like
+    // EduDriverData or DRM RegistrationData).
+    unsafe {
         pdev.request_irq(
             vector,
             irq::Flags::SHARED,
@@ -61,12 +58,8 @@ fn register_irq<'bound>(
                 pdev: &**pdev,
                 bar,
             }),
-        )?
-    };
-    
-    // In-place initialization is required because Registration is pinned
-    // and holds the handler.
-    Ok(irq_init)
+        )
+    }
 }
 ```
 

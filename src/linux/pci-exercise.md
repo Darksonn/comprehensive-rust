@@ -25,7 +25,7 @@ qemu-system-x86_64 \
     -machine q35,acpi=on \
     -kernel linux/arch/x86/boot/bzImage \
     -drive file=debian.img,format=raw,if=virtio \
-    -append "root=/dev/vda console=ttyS0 acpi=force" \
+    -append "root=/dev/vda console=ttyS0 acpi=force net.ifnames=0" \
     -nographic \
     -no-reboot \
     -m 2G -smp 2 \
