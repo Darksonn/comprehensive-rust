@@ -17,7 +17,6 @@ Here is the complete solution for the QEMU EDU PCI DRM driver, wrapping the hard
 //! Rust PCI EDU driver sample with a DRM class device interface and IRQ support.
 
 use kernel::{
-    device,
     device::{Bound, Core, DeviceContext},
     drm,
     drm::ioctl,
@@ -65,42 +64,29 @@ mod regs {
 }
 
 #[pin_data]
-struct EduRegistrationData<'drm> {
-    pdev: &'drm pci::Device<Bound>,
-    bar: pci::Bar<'drm, { regs::END }>,
+struct EduRegistrationData<'a> {
+    pdev: &'a pci::Device<Bound>,
+    #[pin]
+    _irq: irq::Registration<'a, EduIrqHandler<'a>>,
 }
 
 #[pin_data]
-struct EduIrqHandler {
-    drm: ARef<drm::Device<EduDrmDriver>>,
+struct EduIrqHandler<'bound> {
+    pdev: &'bound pci::Device<Bound>,
+    bar: pci::Bar<'bound, { regs::END }>,
 }
 
-impl irq::Handler for EduIrqHandler {
-    fn handle(&self, _device: &device::Device<Bound>) -> irq::IrqReturn {
-        let guard = match self.drm.registration_guard() {
-            Some(guard) => guard,
-            None => return irq::IrqReturn::None,
-        };
+impl<'bound> irq::Handler for EduIrqHandler<'bound> {
+    fn handle(&self) -> irq::IrqReturn {
+        let status = *self.bar.read(regs::IRQ_STATUS).val();
+        if status == 0 {
+            return irq::IrqReturn::None;
+        }
 
-        guard.registration_data_with(|reg_data| {
-            let status = *reg_data.bar.read(regs::IRQ_STATUS).val();
-            if status == 0 {
-                return irq::IrqReturn::None;
-            }
+        dev_info!(self.pdev, "QEMU EDU DRM IRQ handled! status=0x{:x}\n", status);
+        self.bar.write_reg(regs::IRQ_STATUS::zeroed().with_val(status));
 
-            dev_info!(
-                reg_data.pdev,
-                "QEMU EDU DRM IRQ handled! status=0x{:x}\n",
-                status
-            );
-            
-            // Clear interrupt status
-            reg_data
-                .bar
-                .write_reg(regs::IRQ_STATUS::zeroed().with_val(status));
-
-            irq::IrqReturn::Handled
-        })
+        irq::IrqReturn::Handled
     }
 }
 
@@ -121,7 +107,8 @@ impl EduFile {
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        arg.id = *reg_data.bar.read(regs::ID).id();
+        let bar = &reg_data._irq.handler().bar;
+        arg.id = *bar.read(regs::ID).id();
         Ok(0)
     }
 
@@ -131,10 +118,9 @@ impl EduFile {
         arg: &mut uapi::drm_edu_test_liveness,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        reg_data
-            .bar
-            .write_reg(regs::LIVENESS::zeroed().with_val(arg.val));
-        arg.inv = *reg_data.bar.read(regs::LIVENESS).val();
+        let bar = &reg_data._irq.handler().bar;
+        bar.write_reg(regs::LIVENESS::zeroed().with_val(arg.val));
+        arg.inv = *bar.read(regs::LIVENESS).val();
         Ok(0)
     }
 
@@ -144,19 +130,17 @@ impl EduFile {
         arg: &mut uapi::drm_edu_compute_factorial,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        reg_data
-            .bar
-            .write_reg(regs::FACTORIAL::zeroed().with_val(arg.val));
+        let bar = &reg_data._irq.handler().bar;
+        bar.write_reg(regs::FACTORIAL::zeroed().with_val(arg.val));
 
-        // Sleep/poll until the card is finished:
         poll::read_poll_timeout(
-            || Ok(reg_data.bar.read(regs::STATUS)),
-            |status| status.computing() == 0,
+            || Ok(bar.read(regs::STATUS)),
+            |status: &regs::STATUS| status.computing() == 0,
             time::Delta::from_millis(1),
             time::Delta::from_millis(100),
         )?;
 
-        arg.res = *reg_data.bar.read(regs::FACTORIAL).val();
+        arg.res = *bar.read(regs::FACTORIAL).val();
         Ok(0)
     }
 
@@ -166,9 +150,8 @@ impl EduFile {
         arg: &mut uapi::drm_edu_test_irq,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        reg_data
-            .bar
-            .write_reg(regs::IRQ_RAISE::zeroed().with_val(arg.val));
+        let bar = &reg_data._irq.handler().bar;
+        bar.write_reg(regs::IRQ_RAISE::zeroed().with_val(arg.val));
         Ok(0)
     }
 }
@@ -220,8 +203,6 @@ impl drm::Driver for EduDrmDriver {
 #[pin_data(PinnedDrop)]
 struct EduDriverData<'bound> {
     pdev: ARef<pci::Device>,
-    #[pin]
-    _irq: irq::Registration<EduIrqHandler>,
     _reg: drm::Registration<'bound, EduDrmDriver>,
 }
 
@@ -243,44 +224,55 @@ impl pci::Driver for EduDriver {
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
     fn probe<'bound>(
-        pdev: &'bound pci::Device<Core<'_>>,
+        probe_pdev: &'bound pci::Device<Core<'_>>,
         _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         pin_init::pin_init_scope(move || {
-            pdev.enable_device_mem()?;
-            pdev.set_master();
-
-            let bar = pdev.iomap_region_sized::<{ regs::END }>(0, c"qemu_edu_drm")?;
-
-            let unreg_dev =
-                drm::UnregisteredDevice::<EduDrmDriver>::new(pdev, Ok(()))?;
-
-            let reg_data = pin_init!(EduRegistrationData {
-                pdev,
-                bar,
-            });
-
-            let _reg = unsafe {
-                drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data, 0)?
-            };
-
-            let drm_ref: ARef<drm::Device<EduDrmDriver>> = _reg.device().into();
-
-            let vectors = pdev.alloc_irq_vectors(1, 1, pci::IrqTypes::all())?;
-            let vector = *vectors.start();
-
-            let irq_init = pdev.request_irq(
-                vector,
-                irq::Flags::SHARED,
-                c"qemu_edu_drm",
-                try_pin_init!(EduIrqHandler {
-                    drm: drm_ref,
-                }),
+            dev_info!(
+                probe_pdev,
+                "Probe QEMU EDU PCI DRM driver sample (PCI ID: {}, 0x{:x}).\n",
+                probe_pdev.vendor_id(),
+                probe_pdev.device_id()
             );
 
-            Ok(try_pin_init!(EduDriverData {
-                pdev: pdev.into(),
+            probe_pdev.enable_device_mem()?;
+            probe_pdev.set_master();
+
+            let bar = probe_pdev.iomap_region_sized::<{ regs::END }>(0, c"qemu_edu_drm")?;
+
+            let unreg_dev =
+                drm::UnregisteredDevice::<EduDrmDriver>::new(probe_pdev, Ok(()))?;
+
+            let vectors = probe_pdev.alloc_irq_vectors(1, 1, pci::IrqTypes::all())?;
+            let vector = *vectors.start();
+
+            // SAFETY: `_irq` is stored in `EduRegistrationData` (inside `_reg`) and dropped when the
+            // DRM device is unbound; it is never forgotten.
+            let irq_init = unsafe {
+                probe_pdev.request_irq(
+                    vector,
+                    irq::Flags::SHARED,
+                    c"qemu_edu_drm",
+                    try_pin_init!(EduIrqHandler {
+                        pdev: &**probe_pdev,
+                        bar
+                    }),
+                )
+            };
+
+            let reg_data = try_pin_init!(EduRegistrationData {
+                pdev: &**probe_pdev,
                 _irq <- irq_init,
+            });
+
+            // SAFETY: `_reg` is stored in `EduDriverData` and dropped when the PCI driver is
+            // unbound; it is never forgotten.
+            let _reg = unsafe {
+                drm::Registration::new(probe_pdev.as_ref(), unreg_dev, reg_data, 0)?
+            };
+
+            Ok(try_pin_init!(EduDriverData {
+                pdev: probe_pdev.into(),
                 _reg,
             }))
         })
@@ -290,7 +282,7 @@ impl pci::Driver for EduDriver {
 #[pinned_drop]
 impl PinnedDrop for EduDriverData<'_> {
     fn drop(self: Pin<&mut Self>) {
-        dev_info!(self.pdev, "Remove QEMU EDU PCI DRM driver.\n");
+        dev_info!(self.pdev, "Remove QEMU EDU PCI DRM driver sample.\n");
     }
 }
 
@@ -298,7 +290,7 @@ kernel::module_pci_driver! {
     type: EduDriver,
     name: "rust_driver_pci_edu_drm",
     authors: ["Alice Ryhl"],
-    description: "QEMU PCI EDU DRM Driver",
+    description: "QEMU PCI EDU driver with DRM class device interface",
     license: "GPL v2",
 }
 ```

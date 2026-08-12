@@ -48,16 +48,50 @@ Ok(try_pin_init!(EduDriverData {
 
 For graphics cards and accelerators, the **Direct Rendering Manager (DRM)** subsystem is preferred. A DRM device (`/dev/dri/cardX`) is registered using the `drm::Driver` trait.
 
-### Safe Lifetime Protection
+### 1. Implementing the `drm::Driver` Trait
 
-Rather than accessing the PCI device dynamically (which could race with unbinding), DRM uses a sleepable **SRCU critical section** (`drm::RegistrationGuard`) to guarantee memory safety during IOCTLs:
+The DRM driver defines the file operations class, GEM object type, parent device class (PCI in our case), and supported IOCTLs.
+
+```rust,ignore
+struct EduDrmDriver;
+
+#[vtable]
+impl drm::Driver for EduDrmDriver {
+    type Data = ();
+    type RegistrationData<'drm> = EduRegistrationData<'drm>;
+    type File = EduFile;
+    type Object = drm::gem::Object<EduObject>;
+    type ParentDevice<Ctx: DeviceContext> = pci::Device<Ctx>;
+
+    const INFO: drm::DriverInfo = drm::DriverInfo {
+        major: 1,
+        minor: 0,
+        patchlevel: 0,
+        name: c"qemu-edu-drm",
+        desc: c"QEMU PCI EDU DRM Driver",
+    };
+
+    const FEAT_RENDER: bool = true;
+
+    kernel::declare_drm_ioctls! {
+        (EDU_GET_ID, drm_edu_get_id, ioctl::RENDER_ALLOW, EduFile::get_id),
+    }
+}
+```
+
+### 2. File Operations and Safe Lifetime Protection
+
+Rather than accessing the PCI device dynamically (which could race with unbinding), DRM uses a sleepable **SRCU critical section** (`drm::RegistrationGuard`) to guarantee memory safety during IOCTLs. The context is passed via `EduRegistrationData`:
 
 ```rust,ignore
 struct EduFile;
 
 impl drm::file::DriverFile for EduFile {
     type Driver = EduDrmDriver;
-    // ...
+
+    fn open(_dev: &drm::Device<EduDrmDriver>) -> Result<Pin<KBox<Self>>> {
+        Ok(KBox::new(Self, GFP_KERNEL)?.into())
+    }
 }
 
 impl EduFile {
@@ -67,14 +101,46 @@ impl EduFile {
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        // Safe access to the BAR registers inside the SRCU read-side lock:
-        arg.id = *reg_data.bar.read(regs::ID).id();
+        // Safe access to the BAR registers via RegistrationData:
+        let bar = &reg_data._irq.handler().bar;
+        arg.id = *bar.read(regs::ID).id();
         Ok(0)
     }
 }
 ```
 
-- If the PCI card is unplugged or unbound, DRM prevents new IOCTL calls and safely revokes existing ones while the SRCU section finishes.
+### 3. Registering the DRM Device in `probe()`
+
+We register the DRM device inside the PCI `probe()` hook. The returned `drm::Registration` takes ownership of the registration data (which also nests the IRQ handler registration):
+
+```rust,ignore
+// Inside pci::Driver::probe():
+pin_init::pin_init_scope(move || {
+    // ... MMIO and IRQ setup ...
+
+    // 1. Create the unregistered DRM device instance:
+    let unreg_dev = drm::UnregisteredDevice::<EduDrmDriver>::new(probe_pdev, Ok(()))?;
+
+    // 2. Prepare the registration data containing the IRQ registration:
+    let reg_data = try_pin_init!(EduRegistrationData {
+        pdev: &**probe_pdev,
+        _irq <- irq_init,
+    });
+
+    // 3. Register the DRM device with the kernel (exposed to userspace):
+    // SAFETY: `_reg` is stored in `EduDriverData` and dropped on unbind.
+    let _reg = unsafe {
+        drm::Registration::new(probe_pdev.as_ref(), unreg_dev, reg_data, 0)?
+    };
+
+    Ok(try_pin_init!(EduDriverData {
+        pdev: probe_pdev.into(),
+        _reg,
+    }))
+})
+```
+
+- If the PCI card is unplugged or unbound, DRM prevents new IOCTL calls and safely revokes existing ones while the SRCU section finishes. The drop sequence automatically unregisters the IRQ handler before the BAR memory mapping is torn down.
 
 <details>
 

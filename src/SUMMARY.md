@@ -434,7 +434,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - [Welcome](linux/welcome-day-2-afternoon.md)
 - [Interrupts](linux/interrupts.md)
-- [Direct Memory Access (DMA)](linux/dma.md)
 - [Exercise: QEMU EDU PCI Driver](linux/pci-exercise.md)
 - [Solution: QEMU EDU PCI Driver](linux/pci-solution.md)
 
