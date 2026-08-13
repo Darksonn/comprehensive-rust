@@ -18,7 +18,6 @@ Here is a complete solution implementing a shared IPC message board driver using
 
 use kernel::prelude::*;
 use kernel::sync::{new_mutex, Arc, Mutex};
-use kernel::task::Task;
 use kernel::fs::{File, Kiocb};
 use kernel::iov::{IovIterDest, IovIterSource};
 use kernel::miscdevice::{MiscDevice, MiscDeviceOptions, MiscDeviceRegistration};
@@ -64,9 +63,7 @@ impl MiscDevice for FileContext {
         let mut data = KVec::new();
         iov.copy_from_iter_vec(&mut data, GFP_KERNEL)?;
 
-        // SAFETY: We only use the current task to get the PID in the sync context of write_iter,
-        // and we do not store the returned task reference.
-        let pid = unsafe { Task::current() }.pid();
+        let pid = current!().pid();
 
         // Format prefix onto stack
         let mut buf = [0u8; 32];
