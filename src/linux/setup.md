@@ -29,7 +29,7 @@ tar xvf llvm-22.1.6-rust-1.97.0-x86_64.tar.xz
 llvm_prefix=$(realpath llvm-22.1.6-rust-1.97.0-x86_64)
 export PATH=$llvm_prefix/bin:$PATH
 export LIBCLANG_PATH=$llvm_prefix/lib/libclang.so
-cargo install --locked --root $llvm_prefix bindgen-cli
+cargo install --force --locked --root $llvm_prefix bindgen-cli
 ```
 
 > [!NOTE]
