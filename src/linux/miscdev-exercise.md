@@ -36,7 +36,7 @@ Instead of allocating an isolated buffer per open file descriptor, multiple proc
 ## Part 2 (Stretch Goal): Process-Aware Messages
 
 When a process writes to the device, record which process sent the message:
-- Retrieve the caller PID using `kernel::task::Task::current().pid()`.
+- Retrieve the caller PID using the `current!` macro: `current!().pid()`.
 - Format the stored message to include the PID, e.g.: `"[PID 42]: <message>\n"`.
 
 ## Testing in QEMU
