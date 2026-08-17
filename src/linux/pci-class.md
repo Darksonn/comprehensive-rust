@@ -144,8 +144,8 @@ struct EduPciData<'bound> {
 }
 
 #[pin_data]
-struct EduDrmData<'a> {
-    bar: pci::Bar<'a, { regs::END }>,
+struct EduDrmData<'drm> {
+    bar: pci::Bar<'drm, { regs::END }>,
 }
 
 struct EduFile;
