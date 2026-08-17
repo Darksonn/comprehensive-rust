@@ -97,7 +97,7 @@ impl<'bound> irq::Handler for EduIrqHandler<'bound> {
         }
 
         dev_info!(self.pdev, "QEMU EDU DRM IRQ handled! status=0x{:x}\n", status);
-        self.bar.write(regs::IRQ_STATUS, regs::IRQ_STATUS::from_raw(status));
+        self.bar.write(regs::IRQ_STATUS, status.into());
 
         irq::IrqReturn::Handled
     }
@@ -130,7 +130,7 @@ impl EduFile {
         _file: &drm::File<Self>,
     ) -> Result<u32> {
         let bar = &reg_data._irq.handler().bar;
-        bar.write(regs::LIVENESS, regs::LIVENESS::from_raw(arg.val));
+        bar.write(regs::LIVENESS, arg.val.into());
         arg.inv = bar.read(regs::LIVENESS).val().get();
         Ok(0)
     }
@@ -142,7 +142,7 @@ impl EduFile {
         _file: &drm::File<Self>,
     ) -> Result<u32> {
         let bar = &reg_data._irq.handler().bar;
-        bar.write(regs::FACTORIAL, regs::FACTORIAL::from_raw(arg.val));
+        bar.write(regs::FACTORIAL, arg.val.into());
 
         poll::read_poll_timeout(
             || Ok(bar.read(regs::STATUS)),
@@ -162,7 +162,7 @@ impl EduFile {
         _file: &drm::File<Self>,
     ) -> Result<u32> {
         let bar = &reg_data._irq.handler().bar;
-        bar.write(regs::IRQ_RAISE, regs::IRQ_RAISE::from_raw(arg.val));
+        bar.write(regs::IRQ_RAISE, arg.val.into());
         Ok(0)
     }
 }
