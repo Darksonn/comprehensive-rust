@@ -14,22 +14,21 @@ To write a PCI driver in Rust, we implement the **`pci::Driver`** trait and decl
 ```rust,ignore
 use kernel::pci;
 
+struct EduDriverData;
+
 struct EduDriver;
 
 // 1. Declare the PCI Device ID table:
 kernel::pci_device_table!(
     PCI_TABLE,
     <EduDriver as pci::Driver>::IdInfo,
-    [(
-        pci::DeviceId::from_id(pci::Vendor::QEMU, 0x11e8),
-        () // Optional driver data
-    )]
+    [(pci::DeviceId::from_id(pci::Vendor::QEMU, 0x11e8), ())]
 );
 
 // 2. Implement the pci::Driver trait:
 impl pci::Driver for EduDriver {
     type IdInfo = ();
-    type Data<'bound> = EduDriverData; // Instantiated per matching device
+    type Data<'bound> = EduDriverData;
 
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
@@ -37,19 +36,15 @@ impl pci::Driver for EduDriver {
         pdev: &'bound pci::Device<Core<'_>>,
         _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
-        pin_init::pin_init_scope(move || {
-            dev_info!(pdev, "Probing QEMU EDU PCI device!\n");
-            
-            // Initialization steps...
-            Ok(EduDriverData { ... })
-        })
+        dev_info!(pdev, "Probing QEMU EDU PCI device!\n");
+        Ok(EduDriverData)
     }
 }
 
 // 3. Register the module:
 kernel::module_pci_driver! {
     type: EduDriver,
-    name: "rust_driver_pci_edu",
+    name: "rust_driver_pci",
     authors: ["Alice Ryhl"],
     description: "QEMU PCI EDU driver",
     license: "GPL v2",
