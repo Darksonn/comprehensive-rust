@@ -29,6 +29,8 @@ use kernel::{
     prelude::*,
 };
 
+struct EduDriver;
+
 #[pin_data]
 struct EduDriverData {
     pdev: ARef<pci::Device>,
@@ -47,8 +49,6 @@ impl MiscDevice for EduMiscDevice {
         KBox::try_pin_init(try_pin_init!(EduMiscDevice), GFP_KERNEL)
     }
 }
-
-struct EduDriver;
 
 kernel::pci_device_table!(
     PCI_TABLE,
@@ -132,7 +132,25 @@ mod regs {
     pub(super) const END: usize = 0x80;
 }
 
+struct EduDriver;
+
+#[pin_data]
+struct EduDriverData<'bound> {
+    pdev: ARef<pci::Device>,
+    _reg: drm::Registration<'bound, EduDrmDriver>,
+}
+
 struct EduDrmDriver;
+
+#[pin_data]
+struct EduRegistrationData<'a> {
+    bar: pci::Bar<'a, { regs::END }>,
+}
+
+struct EduFile;
+
+#[pin_data]
+struct EduObject {}
 
 #[vtable]
 impl drm::Driver for EduDrmDriver {
@@ -157,13 +175,6 @@ impl drm::Driver for EduDrmDriver {
     }
 }
 
-#[pin_data]
-struct EduRegistrationData<'a> {
-    bar: pci::Bar<'a, { regs::END }>,
-}
-
-struct EduFile;
-
 impl drm::file::DriverFile for EduFile {
     type Driver = EduDrmDriver;
 
@@ -185,9 +196,6 @@ impl EduFile {
     }
 }
 
-#[pin_data]
-struct EduObject {}
-
 impl drm::gem::DriverObject for EduObject {
     type Driver = EduDrmDriver;
     type Args = ();
@@ -200,14 +208,6 @@ impl drm::gem::DriverObject for EduObject {
         try_pin_init!(EduObject {})
     }
 }
-
-#[pin_data]
-struct EduDriverData<'bound> {
-    pdev: ARef<pci::Device>,
-    _reg: drm::Registration<'bound, EduDrmDriver>,
-}
-
-struct EduDriver;
 
 kernel::pci_device_table!(
     PCI_TABLE,
