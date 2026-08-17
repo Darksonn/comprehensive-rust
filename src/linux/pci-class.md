@@ -38,7 +38,7 @@ struct EduPciData {
     _miscdev: MiscDeviceRegistration<EduMiscDevice>,
 }
 
-struct EduMiscDevice;
+struct EduMiscDevice {}
 
 #[vtable]
 impl MiscDevice for EduMiscDevice {
@@ -46,7 +46,7 @@ impl MiscDevice for EduMiscDevice {
     type Ptr = Pin<KBox<Self>>;
 
     fn open(_file: &File, _misc: &MiscDeviceRegistration<Self>) -> Result<Pin<KBox<Self>>> {
-        KBox::try_pin_init(try_pin_init!(EduMiscDevice), GFP_KERNEL)
+        KBox::try_pin_init(try_pin_init!(EduMiscDevice {}), GFP_KERNEL)
     }
 }
 
