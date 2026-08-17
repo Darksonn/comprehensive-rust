@@ -91,25 +91,7 @@ mod regs {
         pub(super) ID(u32) @ 0x00 {
             31:0 id;
         }
-        pub(super) LIVENESS(u32) @ 0x04 {
-            31:0 val;
-        }
-        pub(super) FACTORIAL(u32) @ 0x08 {
-            31:0 val;
-        }
-        pub(super) STATUS(u32) @ 0x20 {
-            0:0 computing;
-            7:7 irq;
-        }
-        pub(super) IRQ_STATUS(u32) @ 0x24 {
-            31:0 val;
-        }
-        pub(super) IRQ_ACKNOWLEDGE(u32) @ 0x64 {
-            31:0 val;
-        }
-        pub(super) IRQ_RAISE(u32) @ 0x60 {
-            31:0 val;
-        }
+        // TODO: Define the rest of the registers here based on the Hardware Register Map.
     }
     pub(super) const END: usize = 0x80;
 }
