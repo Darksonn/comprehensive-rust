@@ -14,9 +14,10 @@ To write a PCI driver in Rust, we implement the **`pci::Driver`** trait and decl
 ```rust,ignore
 use kernel::pci;
 
-struct EduDriverData;
-
 struct EduDriver;
+
+struct EduDriverData {
+}
 
 // 1. Declare the PCI Device ID table:
 kernel::pci_device_table!(
@@ -37,7 +38,7 @@ impl pci::Driver for EduDriver {
         _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         dev_info!(pdev, "Probing QEMU EDU PCI device!\n");
-        Ok(EduDriverData)
+        Ok(EduDriverData {})
     }
 }
 
