@@ -77,7 +77,6 @@ struct EduPciData<'bound> {
 
 #[pin_data]
 struct EduDrmData<'drm> {
-    pdev: &'drm pci::Device<Bound>,
     #[pin]
     _irq: irq::Registration<'drm, EduIrqHandler<'drm>>,
 }
@@ -254,7 +253,6 @@ impl pci::Driver for EduDriver {
             };
 
             let reg_data = try_pin_init!(EduDrmData {
-                pdev: &**probe_pdev,
                 _irq <- irq_init,
             });
 

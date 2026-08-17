@@ -106,7 +106,6 @@ struct EduPciData<'bound> {
 
 #[pin_data]
 struct EduDrmData<'drm> {
-    pdev: &'drm pci::Device<Bound>,
     #[pin]
     _irq: irq::Registration<'drm, EduIrqHandler<'drm>>,
 }
