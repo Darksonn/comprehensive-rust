@@ -57,7 +57,8 @@ The device registers are located at the following offsets inside **BAR 0** (size
 | **`LIVENESS`** | `0x04` | RW | 32-bit | Writing value `X` returns `~X` when read back. |
 | **`FACTORIAL`** | `0x08` | RW | 32-bit | Write `N` to start computing `N!`. Read it back to get the result. |
 | **`STATUS`** | `0x20` | RO | 32-bit | Bit 0: `1` if computing factorial, `0` if idle.<br>Bit 7: `1` if an interrupt is raised. |
-| **`IRQ_STATUS`** | `0x24` | RW | 32-bit | Read pending interrupt value. Write the same value back to clear/acknowledge it. |
+| **`IRQ_STATUS`** | `0x24` | RO | 32-bit | Read pending interrupt value. |
+| **`IRQ_ACKNOWLEDGE`** | `0x64` | WO | 32-bit | Write the pending interrupt value back to clear/acknowledge it. |
 | **`IRQ_RAISE`** | `0x60` | WO | 32-bit | Write any value here to raise an interrupt (MSI) for testing. |
 
 ---
@@ -103,6 +104,9 @@ mod regs {
         pub(super) IRQ_STATUS(u32) @ 0x24 {
             31:0 val;
         }
+        pub(super) IRQ_ACKNOWLEDGE(u32) @ 0x64 {
+            31:0 val;
+        }
         pub(super) IRQ_RAISE(u32) @ 0x60 {
             31:0 val;
         }
@@ -140,7 +144,7 @@ impl<'bound> irq::Handler for EduIrqHandler<'bound> {
     fn handle(&self) -> irq::IrqReturn {
         // TODO: Read regs::IRQ_STATUS. If it is 0, return IrqReturn::None.
         // TODO: Log the interrupt using dev_info!.
-        // TODO: Write status back to IRQ_STATUS to clear/acknowledge the interrupt.
+        // TODO: Write status back to IRQ_ACKNOWLEDGE to clear/acknowledge the interrupt.
         irq::IrqReturn::Handled
     }
 }

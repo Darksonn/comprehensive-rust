@@ -55,6 +55,10 @@ mod regs {
             31:0 val;
         }
 
+        pub(super) IRQ_ACKNOWLEDGE(u32) @ 0x64 {
+            31:0 val;
+        }
+
         pub(super) IRQ_RAISE(u32) @ 0x60 {
             31:0 val;
         }
@@ -97,7 +101,7 @@ impl<'bound> irq::Handler for EduIrqHandler<'bound> {
         }
 
         dev_info!(self.pdev, "QEMU EDU DRM IRQ handled! status=0x{:x}\n", status);
-        self.bar.write(regs::IRQ_STATUS, status.into());
+        self.bar.write(regs::IRQ_ACKNOWLEDGE, status.into());
 
         irq::IrqReturn::Handled
     }
