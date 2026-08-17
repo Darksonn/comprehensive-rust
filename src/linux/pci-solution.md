@@ -91,13 +91,13 @@ struct EduObject {}
 
 impl<'bound> irq::Handler for EduIrqHandler<'bound> {
     fn handle(&self) -> irq::IrqReturn {
-        let status = *self.bar.read(regs::IRQ_STATUS).val();
+        let status = self.bar.read(regs::IRQ_STATUS).val().get();
         if status == 0 {
             return irq::IrqReturn::None;
         }
 
         dev_info!(self.pdev, "QEMU EDU DRM IRQ handled! status=0x{:x}\n", status);
-        self.bar.write_reg(regs::IRQ_STATUS::zeroed().with_val(status));
+        self.bar.write(regs::IRQ_STATUS, regs::IRQ_STATUS::from_raw(status));
 
         irq::IrqReturn::Handled
     }
@@ -119,7 +119,7 @@ impl EduFile {
         _file: &drm::File<Self>,
     ) -> Result<u32> {
         let bar = &reg_data._irq.handler().bar;
-        arg.id = *bar.read(regs::ID).id();
+        arg.id = bar.read(regs::ID).id().get();
         Ok(0)
     }
 
@@ -130,8 +130,8 @@ impl EduFile {
         _file: &drm::File<Self>,
     ) -> Result<u32> {
         let bar = &reg_data._irq.handler().bar;
-        bar.write_reg(regs::LIVENESS::zeroed().with_val(arg.val));
-        arg.inv = *bar.read(regs::LIVENESS).val();
+        bar.write(regs::LIVENESS, regs::LIVENESS::from_raw(arg.val));
+        arg.inv = bar.read(regs::LIVENESS).val().get();
         Ok(0)
     }
 
@@ -142,16 +142,16 @@ impl EduFile {
         _file: &drm::File<Self>,
     ) -> Result<u32> {
         let bar = &reg_data._irq.handler().bar;
-        bar.write_reg(regs::FACTORIAL::zeroed().with_val(arg.val));
+        bar.write(regs::FACTORIAL, regs::FACTORIAL::from_raw(arg.val));
 
         poll::read_poll_timeout(
             || Ok(bar.read(regs::STATUS)),
-            |status: &regs::STATUS| status.computing() == 0,
+            |status: &regs::STATUS| status.computing().get() == 0,
             time::Delta::from_millis(1),
             time::Delta::from_millis(100),
         )?;
 
-        arg.res = *bar.read(regs::FACTORIAL).val();
+        arg.res = bar.read(regs::FACTORIAL).val().get();
         Ok(0)
     }
 
@@ -162,7 +162,7 @@ impl EduFile {
         _file: &drm::File<Self>,
     ) -> Result<u32> {
         let bar = &reg_data._irq.handler().bar;
-        bar.write_reg(regs::IRQ_RAISE::zeroed().with_val(arg.val));
+        bar.write(regs::IRQ_RAISE, regs::IRQ_RAISE::from_raw(arg.val));
         Ok(0)
     }
 }

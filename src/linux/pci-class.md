@@ -225,8 +225,7 @@ impl EduFile {
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        let id = reg_data.bar.read(regs::ID).id();
-        arg.id = id.get();
+        arg.id = reg_data.bar.read(regs::ID).id().get();
         Ok(0)
     }
 }
