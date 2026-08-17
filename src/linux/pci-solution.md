@@ -63,11 +63,19 @@ mod regs {
     pub(super) const END: usize = 0x80;
 }
 
+struct EduDriver;
+
+#[pin_data(PinnedDrop)]
+struct EduPciData<'bound> {
+    pdev: ARef<pci::Device>,
+    _reg: drm::Registration<'bound, EduDriver>,
+}
+
 #[pin_data]
-struct EduRegistrationData<'a> {
-    pdev: &'a pci::Device<Bound>,
+struct EduDrmData<'drm> {
+    pdev: &'drm pci::Device<Bound>,
     #[pin]
-    _irq: irq::Registration<'a, EduIrqHandler<'a>>,
+    _irq: irq::Registration<'drm, EduIrqHandler<'drm>>,
 }
 
 #[pin_data]
@@ -75,6 +83,11 @@ struct EduIrqHandler<'bound> {
     pdev: &'bound pci::Device<Bound>,
     bar: pci::Bar<'bound, { regs::END }>,
 }
+
+struct EduFile;
+
+#[pin_data]
+struct EduObject {}
 
 impl<'bound> irq::Handler for EduIrqHandler<'bound> {
     fn handle(&self) -> irq::IrqReturn {
@@ -90,20 +103,18 @@ impl<'bound> irq::Handler for EduIrqHandler<'bound> {
     }
 }
 
-struct EduFile;
-
 impl drm::file::DriverFile for EduFile {
-    type Driver = EduDrmDriver;
+    type Driver = EduDriver;
 
-    fn open(_dev: &drm::Device<EduDrmDriver>) -> Result<Pin<KBox<Self>>> {
+    fn open(_dev: &drm::Device<EduDriver>) -> Result<Pin<KBox<Self>>> {
         Ok(KBox::new(Self, GFP_KERNEL)?.into())
     }
 }
 
 impl EduFile {
     pub(crate) fn get_id(
-        _dev: &drm::Device<EduDrmDriver, Registered>,
-        reg_data: &EduRegistrationData<'_>,
+        _dev: &drm::Device<EduDriver, Registered>,
+        reg_data: &EduDrmData<'_>,
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
@@ -113,8 +124,8 @@ impl EduFile {
     }
 
     pub(crate) fn test_liveness(
-        _dev: &drm::Device<EduDrmDriver, Registered>,
-        reg_data: &EduRegistrationData<'_>,
+        _dev: &drm::Device<EduDriver, Registered>,
+        reg_data: &EduDrmData<'_>,
         arg: &mut uapi::drm_edu_test_liveness,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
@@ -125,8 +136,8 @@ impl EduFile {
     }
 
     pub(crate) fn compute_factorial(
-        _dev: &drm::Device<EduDrmDriver, Registered>,
-        reg_data: &EduRegistrationData<'_>,
+        _dev: &drm::Device<EduDriver, Registered>,
+        reg_data: &EduDrmData<'_>,
         arg: &mut uapi::drm_edu_compute_factorial,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
@@ -145,8 +156,8 @@ impl EduFile {
     }
 
     pub(crate) fn test_irq(
-        _dev: &drm::Device<EduDrmDriver, Registered>,
-        reg_data: &EduRegistrationData<'_>,
+        _dev: &drm::Device<EduDriver, Registered>,
+        reg_data: &EduDrmData<'_>,
         arg: &mut uapi::drm_edu_test_irq,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
@@ -156,15 +167,12 @@ impl EduFile {
     }
 }
 
-#[pin_data]
-struct EduObject {}
-
 impl drm::gem::DriverObject for EduObject {
-    type Driver = EduDrmDriver;
+    type Driver = EduDriver;
     type Args = ();
 
     fn new(
-        _dev: &drm::Device<EduDrmDriver>,
+        _dev: &drm::Device<EduDriver>,
         _size: usize,
         _args: Self::Args,
     ) -> impl PinInit<Self, Error> {
@@ -172,12 +180,10 @@ impl drm::gem::DriverObject for EduObject {
     }
 }
 
-struct EduDrmDriver;
-
 #[vtable]
-impl drm::Driver for EduDrmDriver {
+impl drm::Driver for EduDriver {
     type Data = ();
-    type RegistrationData<'drm> = EduRegistrationData<'drm>;
+    type RegistrationData<'drm> = EduDrmData<'drm>;
     type File = EduFile;
     type Object = drm::gem::Object<EduObject>;
     type ParentDevice<Ctx: DeviceContext> = pci::Device<Ctx>;
@@ -200,26 +206,9 @@ impl drm::Driver for EduDrmDriver {
     }
 }
 
-#[pin_data(PinnedDrop)]
-struct EduDriverData<'bound> {
-    pdev: ARef<pci::Device>,
-    _reg: drm::Registration<'bound, EduDrmDriver>,
-}
-
-struct EduDriver;
-
-kernel::pci_device_table!(
-    PCI_TABLE,
-    <EduDriver as pci::Driver>::IdInfo,
-    [(
-        pci::DeviceId::from_id(pci::Vendor::QEMU, 0x11e8),
-        ()
-    )]
-);
-
 impl pci::Driver for EduDriver {
     type IdInfo = ();
-    type Data<'bound> = EduDriverData<'bound>;
+    type Data<'bound> = EduPciData<'bound>;
 
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
@@ -241,12 +230,12 @@ impl pci::Driver for EduDriver {
             let bar = probe_pdev.iomap_region_sized::<{ regs::END }>(0, c"qemu_edu_drm")?;
 
             let unreg_dev =
-                drm::UnregisteredDevice::<EduDrmDriver>::new(probe_pdev, Ok(()))?;
+                drm::UnregisteredDevice::<EduDriver>::new(probe_pdev, Ok(()))?;
 
             let vectors = probe_pdev.alloc_irq_vectors(1, 1, pci::IrqTypes::all())?;
             let vector = *vectors.start();
 
-            // SAFETY: `_irq` is stored in `EduRegistrationData` (inside `_reg`) and dropped when the
+            // SAFETY: `_irq` is stored in `EduDrmData` (inside `_reg`) and dropped when the
             // DRM device is unbound; it is never forgotten.
             let irq_init = unsafe {
                 probe_pdev.request_irq(
@@ -260,18 +249,18 @@ impl pci::Driver for EduDriver {
                 )
             };
 
-            let reg_data = try_pin_init!(EduRegistrationData {
+            let reg_data = try_pin_init!(EduDrmData {
                 pdev: &**probe_pdev,
                 _irq <- irq_init,
             });
 
-            // SAFETY: `_reg` is stored in `EduDriverData` and dropped when the PCI driver is
+            // SAFETY: `_reg` is stored in `EduPciData` and dropped when the PCI driver is
             // unbound; it is never forgotten.
             let _reg = unsafe {
                 drm::Registration::new(probe_pdev.as_ref(), unreg_dev, reg_data, 0)?
             };
 
-            Ok(try_pin_init!(EduDriverData {
+            Ok(try_pin_init!(EduPciData {
                 pdev: probe_pdev.into(),
                 _reg,
             }))
@@ -280,11 +269,20 @@ impl pci::Driver for EduDriver {
 }
 
 #[pinned_drop]
-impl PinnedDrop for EduDriverData<'_> {
+impl PinnedDrop for EduPciData<'_> {
     fn drop(self: Pin<&mut Self>) {
         dev_info!(self.pdev, "Remove QEMU EDU PCI DRM driver sample.\n");
     }
 }
+
+kernel::pci_device_table!(
+    PCI_TABLE,
+    <EduDriver as pci::Driver>::IdInfo,
+    [(
+        pci::DeviceId::from_id(pci::Vendor::QEMU, 0x11e8),
+        ()
+    )]
+);
 
 kernel::module_pci_driver! {
     type: EduDriver,
