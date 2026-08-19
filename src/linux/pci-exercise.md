@@ -289,3 +289,104 @@ kernel::module_pci_driver! {
     license: "GPL v2",
 }
 ```
+
+---
+
+## Userspace Test Program
+
+To test all the functionalities of your driver (reading ID, liveness check, factorial calculation, and interrupt triggering) from userspace, you can use the following C program.
+
+Save it as `test_edu.c`:
+
+```c
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <drm/drm.h>
+
+struct drm_edu_get_id {
+    __u32 id;
+};
+
+struct drm_edu_test_liveness {
+    __u32 val;
+    __u32 inv;
+};
+
+struct drm_edu_compute_factorial {
+    __u32 val;
+    __u32 res;
+};
+
+struct drm_edu_test_irq {
+    __u32 val;
+};
+
+#define DRM_EDU_GET_ID             0x00
+#define DRM_EDU_TEST_LIVENESS      0x01
+#define DRM_EDU_COMPUTE_FACTORIAL  0x02
+#define DRM_EDU_TEST_IRQ           0x03
+
+#define DRM_IOCTL_EDU_GET_ID            DRM_IOR(DRM_COMMAND_BASE + DRM_EDU_GET_ID, struct drm_edu_get_id)
+#define DRM_IOCTL_EDU_TEST_LIVENESS     DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_TEST_LIVENESS, struct drm_edu_test_liveness)
+#define DRM_IOCTL_EDU_COMPUTE_FACTORIAL DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_COMPUTE_FACTORIAL, struct drm_edu_compute_factorial)
+#define DRM_IOCTL_EDU_TEST_IRQ          DRM_IOW(DRM_COMMAND_BASE + DRM_EDU_TEST_IRQ, struct drm_edu_test_irq)
+
+int main() {
+    int fd = open("/dev/dri/renderD128", O_RDWR);
+    if (fd < 0) {
+        perror("Failed to open /dev/dri/renderD128");
+        return 1;
+    }
+
+    printf("[1] Testing GET_ID...\n");
+    struct drm_edu_get_id id_arg = {0};
+    if (ioctl(fd, DRM_IOCTL_EDU_GET_ID, &id_arg) < 0) {
+        perror("GET_ID failed");
+    } else {
+        printf("  GET_ID result: 0x%08x (expected: 0x010000ed)\n", id_arg.id);
+    }
+
+    printf("[2] Testing LIVENESS (writing 0x5a5a5a5a)...\n");
+    struct drm_edu_test_liveness live_arg = { .val = 0x5a5a5a5a };
+    if (ioctl(fd, DRM_IOCTL_EDU_TEST_LIVENESS, &live_arg) < 0) {
+        perror("LIVENESS failed");
+    } else {
+        printf("  LIVENESS result: val=0x%08x, inv=0x%08x (expected inv: 0xa5a5a5a5)\n",
+               live_arg.val, live_arg.inv);
+    }
+
+    printf("[3] Testing FACTORIAL (computing 5!)...\n");
+    struct drm_edu_compute_factorial fact_arg = { .val = 5 };
+    if (ioctl(fd, DRM_IOCTL_EDU_COMPUTE_FACTORIAL, &fact_arg) < 0) {
+        perror("FACTORIAL failed");
+    } else {
+        printf("  FACTORIAL result: %u! = %u (expected: 120)\n",
+               fact_arg.val, fact_arg.res);
+    }
+
+    printf("[4] Testing IRQ (raising interrupt value 42)...\n");
+    struct drm_edu_test_irq irq_arg = { .val = 42 };
+    if (ioctl(fd, DRM_IOCTL_EDU_TEST_IRQ, &irq_arg) < 0) {
+        perror("IRQ failed");
+    } else {
+        printf("  IRQ triggered. Check dmesg for handled interrupt log!\n");
+    }
+
+    close(fd);
+    return 0;
+}
+```
+
+### Compiling and Running
+
+Compile the code statically on your host machine, transfer the binary to the VM, and run it:
+
+```bash
+# Compile statically on host:
+gcc -static -o test_edu test_edu.c
+
+# Run inside the VM (assuming your driver is loaded):
+./test_edu
+```
