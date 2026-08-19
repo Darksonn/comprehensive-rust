@@ -18,18 +18,16 @@ use kernel::pci;
 use kernel::io::{register, Io};
 
 mod regs {
+    use kernel::io::register;
     register! {
-        pub(super) ID(u32) @ 0x00 {
-            31:0 id;
+        pub(super) DATA(u8) @ 0x8 {
+            7:0 data;
         }
-        pub(super) FACTORIAL(u32) @ 0x08 {
-            31:0 val;
-        }
-        pub(super) STATUS(u32) @ 0x20 {
-            0:0 computing;
+        pub(super) COUNT(u32) @ 0xC {
+            31:0 count;
         }
     }
-    pub(super) const END: usize = 0x80;
+    pub(super) const END: usize = 0x10;
 }
 
 fn init_mmio<'bound>(
@@ -38,15 +36,15 @@ fn init_mmio<'bound>(
     // 1. Enable memory space access (maps the physical BAR decoder):
     pdev.enable_device_mem()?;
 
-    // 2. Map BAR 0 (the MMIO range of size 0x80):
+    // 2. Map BAR 0 (the MMIO range of size 0x10):
     // Returns a Bar<'bound, SIZE> which borrows the device.
-    let bar = pdev.iomap_region_sized::<{ regs::END }>(0, c"qemu_edu")?;
+    let bar = pdev.iomap_region_sized::<{ regs::END }>(0, c"pci_testdev")?;
 
     // 3. Read and write registers directly (no runtime lock needed):
-    let id = bar.read(regs::ID).id();
-    dev_info!(pdev, "Device ID: 0x{:x}\n", id);
+    let count = bar.read(regs::COUNT).count().get();
+    dev_info!(pdev, "Test count: {}\n", count);
 
-    bar.write_reg(regs::FACTORIAL::zeroed().with_val(5));
+    bar.write(regs::DATA, 5.into());
     
     Ok(bar)
 }
@@ -63,6 +61,6 @@ fn init_mmio<'bound>(
 
 - Explain why `pci::Bar` can be used directly: since we can use lifetime-bound driver data, we can store `Bar<'bound>` directly.
 - Mention `into_devres()` as an alternative: if a driver *must* use a `'static` driver data structure (like the miscdevice-based PCI driver), it can convert the `Bar` into a `DevresBar` (which is `DevresLt<Bar<'static>>`). This requires runtime borrow checking using `.try_access()`.
-- Compare C-style pointer dereferencing (`writel(val, addr)`) with Rust's structured `bar.write_reg` API.
+- Compare C-style pointer dereferencing (`writel(val, addr)`) with Rust's structured `bar.write` API.
 
 </details>
