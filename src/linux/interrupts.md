@@ -17,7 +17,7 @@ With the lifetime-bound IRQ subsystem, the handler borrows hardware resources (l
 
 ## Full Example: PCI Driver with MSI Interrupts
 
-This example builds on top of the PCI + DRM driver to add MSI interrupt registration and a simple handler (using fictitious registers for illustration on `pci-testdev`).
+This example builds on top of the PCI + DRM driver to add MSI interrupt registration and a simple handler structure on `pci-testdev`.
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
@@ -46,15 +46,8 @@ mod regs {
         pub(super) COUNT(u32) @ 0xC {
             31:0 count;
         }
-        // Fictitious registers for illustration
-        pub(super) IRQ_STATUS(u32) @ 0x10 {
-            31:0 val;
-        }
-        pub(super) IRQ_ACKNOWLEDGE(u32) @ 0x14 {
-            31:0 val;
-        }
     }
-    pub(super) const END: usize = 0x18;
+    pub(super) const END: usize = 0x10;
 }
 
 struct TestPciDriver;
@@ -84,14 +77,12 @@ struct TestObject {}
 
 impl<'bound> irq::Handler for TestIrqHandler<'bound> {
     fn handle(&self) -> irq::IrqReturn {
-        let status = self.bar.read(regs::IRQ_STATUS).val().get();
-        if status == 0 {
-            return irq::IrqReturn::None;
-        }
-
-        dev_info!(self.pdev, "QEMU PCI testdev IRQ handled! status=0x{:x}\n", status);
-        self.bar.write(regs::IRQ_ACKNOWLEDGE, status.into());
-
+        // In a real handler, you would:
+        // 1. Read the interrupt status register.
+        // 2. Check if this device generated the interrupt (return IrqReturn::None if not).
+        // 3. Clear/acknowledge the hardware interrupt.
+        // 4. Signal work to be done (e.g. wake up a thread or trigger a workqueue).
+        dev_info!(self.pdev, "IRQ handled!\n");
         irq::IrqReturn::Handled
     }
 }
