@@ -294,13 +294,15 @@ kernel::module_pci_driver! {
 
 ## Userspace Test Program
 
-To test all the functionalities of your driver (reading ID, liveness check, factorial calculation, and interrupt triggering) from userspace, you can use the following C program.
+To test all the functionalities of your driver (reading ID, liveness check, factorial calculation, and interrupt triggering) from userspace, you can use the following C program. It accepts command-line arguments to test different IOCTLs with custom values.
 
 Save it as `test_edu.c`:
 
 ```c
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <drm/drm.h>
@@ -333,45 +335,87 @@ struct drm_edu_test_irq {
 #define DRM_IOCTL_EDU_COMPUTE_FACTORIAL DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_COMPUTE_FACTORIAL, struct drm_edu_compute_factorial)
 #define DRM_IOCTL_EDU_TEST_IRQ          DRM_IOW(DRM_COMMAND_BASE + DRM_EDU_TEST_IRQ, struct drm_edu_test_irq)
 
-int main() {
+void print_usage(const char *prog) {
+    fprintf(stderr, "Usage:\n");
+    fprintf(stderr, "  %s id              - Get device ID\n", prog);
+    fprintf(stderr, "  %s live <value>    - Test liveness (writes value, expects ~value)\n", prog);
+    fprintf(stderr, "  %s fact <value>    - Compute factorial of value\n", prog);
+    fprintf(stderr, "  %s irq <value>     - Trigger interrupt with value\n", prog);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        print_usage(argv[0]);
+        return 1;
+    }
+
     int fd = open("/dev/dri/renderD128", O_RDWR);
     if (fd < 0) {
         perror("Failed to open /dev/dri/renderD128");
         return 1;
     }
 
-    printf("[1] Testing GET_ID...\n");
-    struct drm_edu_get_id id_arg = {0};
-    if (ioctl(fd, DRM_IOCTL_EDU_GET_ID, &id_arg) < 0) {
-        perror("GET_ID failed");
-    } else {
-        printf("  GET_ID result: 0x%08x (expected: 0x010000ed)\n", id_arg.id);
-    }
+    const char *cmd = argv[1];
 
-    printf("[2] Testing LIVENESS (writing 0x5a5a5a5a)...\n");
-    struct drm_edu_test_liveness live_arg = { .val = 0x5a5a5a5a };
-    if (ioctl(fd, DRM_IOCTL_EDU_TEST_LIVENESS, &live_arg) < 0) {
-        perror("LIVENESS failed");
+    if (strcmp(cmd, "id") == 0) {
+        struct drm_edu_get_id arg = {0};
+        if (ioctl(fd, DRM_IOCTL_EDU_GET_ID, &arg) < 0) {
+            perror("GET_ID failed");
+            close(fd);
+            return 1;
+        }
+        printf("Device ID: 0x%08x\n", arg.id);
+    } else if (strcmp(cmd, "live") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Error: 'live' requires an integer argument.\n");
+            print_usage(argv[0]);
+            close(fd);
+            return 1;
+        }
+        unsigned int val = strtoul(argv[2], NULL, 0);
+        struct drm_edu_test_liveness arg = { .val = val };
+        if (ioctl(fd, DRM_IOCTL_EDU_TEST_LIVENESS, &arg) < 0) {
+            perror("LIVENESS failed");
+            close(fd);
+            return 1;
+        }
+        printf("Liveness: written=0x%08x, read=0x%08x (expected: 0x%08x)\n",
+               val, arg.inv, ~val);
+    } else if (strcmp(cmd, "fact") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Error: 'fact' requires an integer argument.\n");
+            print_usage(argv[0]);
+            close(fd);
+            return 1;
+        }
+        unsigned int val = strtoul(argv[2], NULL, 0);
+        struct drm_edu_compute_factorial arg = { .val = val };
+        if (ioctl(fd, DRM_IOCTL_EDU_COMPUTE_FACTORIAL, &arg) < 0) {
+            perror("FACTORIAL failed");
+            close(fd);
+            return 1;
+        }
+        printf("Factorial: %u! = %u\n", val, arg.res);
+    } else if (strcmp(cmd, "irq") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Error: 'irq' requires an integer argument.\n");
+            print_usage(argv[0]);
+            close(fd);
+            return 1;
+        }
+        unsigned int val = strtoul(argv[2], NULL, 0);
+        struct drm_edu_test_irq arg = { .val = val };
+        if (ioctl(fd, DRM_IOCTL_EDU_TEST_IRQ, &arg) < 0) {
+            perror("IRQ failed");
+            close(fd);
+            return 1;
+        }
+        printf("IRQ triggered with value %u. Check dmesg for handled log.\n", val);
     } else {
-        printf("  LIVENESS result: val=0x%08x, inv=0x%08x (expected inv: 0xa5a5a5a5)\n",
-               live_arg.val, live_arg.inv);
-    }
-
-    printf("[3] Testing FACTORIAL (computing 5!)...\n");
-    struct drm_edu_compute_factorial fact_arg = { .val = 5 };
-    if (ioctl(fd, DRM_IOCTL_EDU_COMPUTE_FACTORIAL, &fact_arg) < 0) {
-        perror("FACTORIAL failed");
-    } else {
-        printf("  FACTORIAL result: %u! = %u (expected: 120)\n",
-               fact_arg.val, fact_arg.res);
-    }
-
-    printf("[4] Testing IRQ (raising interrupt value 42)...\n");
-    struct drm_edu_test_irq irq_arg = { .val = 42 };
-    if (ioctl(fd, DRM_IOCTL_EDU_TEST_IRQ, &irq_arg) < 0) {
-        perror("IRQ failed");
-    } else {
-        printf("  IRQ triggered. Check dmesg for handled interrupt log!\n");
+        fprintf(stderr, "Error: Unknown command '%s'\n", cmd);
+        print_usage(argv[0]);
+        close(fd);
+        return 1;
     }
 
     close(fd);
@@ -388,5 +432,8 @@ Compile the code statically on your host machine, transfer the binary to the VM,
 gcc -static -o test_edu test_edu.c
 
 # Run inside the VM (assuming your driver is loaded):
-./test_edu
+./test_edu id
+./test_edu live 0x1234
+./test_edu fact 5
+./test_edu irq 42
 ```
