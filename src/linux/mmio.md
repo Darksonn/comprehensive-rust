@@ -194,6 +194,61 @@ kernel::module_pci_driver! {
 - **The `register!` Macro:** Provides type-safe register definitions with field-level bitmasks, preventing invalid bit writes.
 - **Memory Barriers:** Register accessors invoke hardware barriers (such as `mb()`, `rmb()`, `wmb()`) under the hood to ensure writes to the device are not reordered by the CPU pipeline or compiler.
 
+---
+
+## Userspace Interaction: Calling the IOCTL
+
+To verify our DRM driver works and we can read the register from userspace, we can write a simple C program that opens the DRM render node and calls our `EDU_GET_ID` IOCTL.
+
+Save the following code as `test_ioctl.c`:
+
+```c
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <drm/drm.h>
+
+struct drm_edu_get_id {
+    __u32 id;
+};
+
+#define DRM_EDU_GET_ID             0x00
+#define DRM_IOCTL_EDU_GET_ID       DRM_IOR(DRM_COMMAND_BASE + DRM_EDU_GET_ID, struct drm_edu_get_id)
+
+int main() {
+    // Open the render node (does not require root/master privileges)
+    int fd = open("/dev/dri/renderD128", O_RDWR);
+    if (fd < 0) {
+        perror("Failed to open /dev/dri/renderD128");
+        return 1;
+    }
+
+    struct drm_edu_get_id arg = {0};
+    if (ioctl(fd, DRM_IOCTL_EDU_GET_ID, &arg) < 0) {
+        perror("IOCTL failed");
+        close(fd);
+        return 1;
+    }
+
+    printf("Device register value (COUNT): %u\n", arg.id);
+    close(fd);
+    return 0;
+}
+```
+
+### Compiling and Running
+
+You can compile this program on your host machine statically, copy it to the virtual machine, and run it.
+
+```bash
+# Compile statically on host:
+gcc -static -o test_ioctl test_ioctl.c
+
+# Run inside the VM (assuming your driver is loaded):
+./test_ioctl
+```
+
 <details>
 
 - Explain why `pci::Bar` can be used directly: since we can use lifetime-bound driver data, we can store `Bar<'bound>` directly.
