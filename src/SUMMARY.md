@@ -437,6 +437,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - [Welcome](linux/welcome-day-2-afternoon.md)
 - [Memory-Mapped I/O](linux/mmio.md)
   - [Exercise: Device ID and Liveness](linux/pci-exercise-id-liveness.md)
+  - [Solution: Device ID and Liveness](linux/pci-solution-id-liveness.md)
 - [Interrupts](linux/interrupts.md)
 - [Exercise: Factorial and Interrupts](linux/pci-exercise.md)
 - [Solution: QEMU EDU PCI DRM Driver](linux/pci-solution.md)
