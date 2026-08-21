@@ -1,0 +1,185 @@
+---
+minutes: 30
+---
+
+<!--
+Copyright 2026 Google LLC
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
+# Exercise: Device ID and Liveness
+
+In this exercise, you will begin implementing a DRM PCI driver for the QEMU `edu` device. You will focus on mapping the MMIO BAR and implementing the `GET_ID` and `TEST_LIVENESS` IOCTLs.
+
+---
+
+## Hardware Information
+
+The QEMU `edu` device has the following register specifications for this exercise:
+
+*   **PCI Vendor ID:** `0x1234`
+*   **PCI Device ID:** `0x11e8`
+*   **BAR 0:** MMIO range of size `0x80` bytes.
+*   **Registers:**
+    *   **`ID`** (Offset `0x00`, RO, 32-bit): Returns `0x010000ed`.
+    *   **`LIVENESS`** (Offset `0x04`, RW, 32-bit): Reading returns the bitwise NOT (`~`) of the last value written.
+
+---
+
+## Starter Code
+
+You can use the starter code in `samples/rust/rust_driver_pci_edu_drm.rs` in your kernel tree.
+
+For this first part, you can ignore or comment out the interrupt-related code (such as the `_irq` field in `EduRegistrationData` and the IRQ allocation/request TODOs in `probe`) to focus solely on MMIO and these two IOCTLs.
+
+### Tasks
+
+1.  **Map BAR 0:** In `probe`, enable device memory and map BAR 0.
+2.  **Define Registers:** Define `ID` and `LIVENESS` in the `register!` macro.
+3.  **DRM Registration:** Store the mapped `Bar` in `EduDrmData` (the DRM `RegistrationData` struct) and register the DRM device.
+4.  **Implement `get_id` IOCTL:** Read the `ID` register and write it to `arg.id`.
+5.  **Implement `test_liveness` IOCTL:** Write `arg.val` to the `LIVENESS` register, read it back, and write the bitwise NOT result to `arg.inv`.
+
+---
+
+## Userspace Test Program
+
+Save the following code as `test_edu.c` on your host machine. This program contains commands for all parts of the exercise (including the upcoming factorial and interrupt tasks).
+
+```c
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <drm/drm.h>
+
+struct drm_edu_get_id {
+    __u32 id;
+};
+
+struct drm_edu_test_liveness {
+    __u32 val;
+    __u32 inv;
+};
+
+struct drm_edu_compute_factorial {
+    __u32 val;
+    __u32 res;
+};
+
+struct drm_edu_test_irq {
+    __u32 val;
+};
+
+#define DRM_EDU_GET_ID             0x00
+#define DRM_EDU_TEST_LIVENESS      0x01
+#define DRM_EDU_COMPUTE_FACTORIAL  0x02
+#define DRM_EDU_TEST_IRQ           0x03
+
+#define DRM_IOCTL_EDU_GET_ID            DRM_IOR(DRM_COMMAND_BASE + DRM_EDU_GET_ID, struct drm_edu_get_id)
+#define DRM_IOCTL_EDU_TEST_LIVENESS     DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_TEST_LIVENESS, struct drm_edu_test_liveness)
+#define DRM_IOCTL_EDU_COMPUTE_FACTORIAL DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_COMPUTE_FACTORIAL, struct drm_edu_compute_factorial)
+#define DRM_IOCTL_EDU_TEST_IRQ          DRM_IOW(DRM_COMMAND_BASE + DRM_EDU_TEST_IRQ, struct drm_edu_test_irq)
+
+void print_usage(const char *prog) {
+    fprintf(stderr, "Usage:\n");
+    fprintf(stderr, "  %s id              - Get device ID\n", prog);
+    fprintf(stderr, "  %s live <value>    - Test liveness (writes value, expects ~value)\n", prog);
+    fprintf(stderr, "  %s fact <value>    - Compute factorial of value\n", prog);
+    fprintf(stderr, "  %s irq <value>     - Trigger interrupt with value\n", prog);
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        print_usage(argv[0]);
+        return 1;
+    }
+
+    int fd = open("/dev/dri/renderD128", O_RDWR);
+    if (fd < 0) {
+        perror("Failed to open /dev/dri/renderD128");
+        return 1;
+    }
+
+    const char *cmd = argv[1];
+
+    if (strcmp(cmd, "id") == 0) {
+        struct drm_edu_get_id arg = {0};
+        if (ioctl(fd, DRM_IOCTL_EDU_GET_ID, &arg) < 0) {
+            perror("GET_ID failed");
+            close(fd);
+            return 1;
+        }
+        printf("Device ID: 0x%08x (expected: 0x010000ed)\n", arg.id);
+    } else if (strcmp(cmd, "live") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Error: 'live' requires an integer argument.\n");
+            print_usage(argv[0]);
+            close(fd);
+            return 1;
+        }
+        unsigned int val = strtoul(argv[2], NULL, 0);
+        struct drm_edu_test_liveness arg = { .val = val };
+        if (ioctl(fd, DRM_IOCTL_EDU_TEST_LIVENESS, &arg) < 0) {
+            perror("LIVENESS failed");
+            close(fd);
+            return 1;
+        }
+        printf("Liveness: written=0x%08x, read=0x%08x (expected: 0x%08x)\n",
+               val, arg.inv, ~val);
+    } else if (strcmp(cmd, "fact") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Error: 'fact' requires an integer argument.\n");
+            print_usage(argv[0]);
+            close(fd);
+            return 1;
+        }
+        unsigned int val = strtoul(argv[2], NULL, 0);
+        struct drm_edu_compute_factorial arg = { .val = val };
+        if (ioctl(fd, DRM_IOCTL_EDU_COMPUTE_FACTORIAL, &arg) < 0) {
+            perror("FACTORIAL failed");
+            close(fd);
+            return 1;
+        }
+        printf("Factorial: %u! = %u\n", val, arg.res);
+    } else if (strcmp(cmd, "irq") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Error: 'irq' requires an integer argument.\n");
+            print_usage(argv[0]);
+            close(fd);
+            return 1;
+        }
+        unsigned int val = strtoul(argv[2], NULL, 0);
+        struct drm_edu_test_irq arg = { .val = val };
+        if (ioctl(fd, DRM_IOCTL_EDU_TEST_IRQ, &arg) < 0) {
+            perror("IRQ failed");
+            close(fd);
+            return 1;
+        }
+        printf("IRQ triggered with value %u. Check dmesg for handled log.\n", val);
+    } else {
+        fprintf(stderr, "Error: Unknown command '%s'\n", cmd);
+        print_usage(argv[0]);
+        close(fd);
+        return 1;
+    }
+
+    close(fd);
+    return 0;
+}
+```
+
+### Compiling and Running
+
+Compile the code statically on your host machine, transfer the binary to the VM, and run it:
+
+```bash
+# Compile statically on host:
+gcc -static -o test_edu test_edu.c
+
+# Run inside the VM (assuming your driver is loaded):
+./test_edu id
+./test_edu live 0x12345678
+```

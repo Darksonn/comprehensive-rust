@@ -7,11 +7,9 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Exercise: QEMU EDU PCI DRM Driver
+# Exercise: Factorial and Interrupts
 
-In this exercise, you will write a real PCI device driver for the **QEMU `edu` educational device** using the **DRM (Direct Rendering Manager) subsystem** class interface.
-
-The driver will map the device's Base Address Register (BAR 0) to access hardware registers, register an interrupt handler to handle MSI interrupts, and expose a `/dev/dri/cardX` interface to compute factorials and test card liveness.
+In this exercise, you will complete the PCI DRM driver for the QEMU `edu` device by implementing factorial computation and MSI interrupt handling. You will build on top of your solution from the **Device ID and Liveness** exercise.
 
 ---
 
@@ -292,148 +290,17 @@ kernel::module_pci_driver! {
 
 ---
 
-## Userspace Test Program
+## Testing
 
-To test all the functionalities of your driver (reading ID, liveness check, factorial calculation, and interrupt triggering) from userspace, you can use the following C program. It accepts command-line arguments to test different IOCTLs with custom values.
-
-Save it as `test_edu.c`:
-
-```c
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <drm/drm.h>
-
-struct drm_edu_get_id {
-    __u32 id;
-};
-
-struct drm_edu_test_liveness {
-    __u32 val;
-    __u32 inv;
-};
-
-struct drm_edu_compute_factorial {
-    __u32 val;
-    __u32 res;
-};
-
-struct drm_edu_test_irq {
-    __u32 val;
-};
-
-#define DRM_EDU_GET_ID             0x00
-#define DRM_EDU_TEST_LIVENESS      0x01
-#define DRM_EDU_COMPUTE_FACTORIAL  0x02
-#define DRM_EDU_TEST_IRQ           0x03
-
-#define DRM_IOCTL_EDU_GET_ID            DRM_IOR(DRM_COMMAND_BASE + DRM_EDU_GET_ID, struct drm_edu_get_id)
-#define DRM_IOCTL_EDU_TEST_LIVENESS     DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_TEST_LIVENESS, struct drm_edu_test_liveness)
-#define DRM_IOCTL_EDU_COMPUTE_FACTORIAL DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_COMPUTE_FACTORIAL, struct drm_edu_compute_factorial)
-#define DRM_IOCTL_EDU_TEST_IRQ          DRM_IOW(DRM_COMMAND_BASE + DRM_EDU_TEST_IRQ, struct drm_edu_test_irq)
-
-void print_usage(const char *prog) {
-    fprintf(stderr, "Usage:\n");
-    fprintf(stderr, "  %s id              - Get device ID\n", prog);
-    fprintf(stderr, "  %s live <value>    - Test liveness (writes value, expects ~value)\n", prog);
-    fprintf(stderr, "  %s fact <value>    - Compute factorial of value\n", prog);
-    fprintf(stderr, "  %s irq <value>     - Trigger interrupt with value\n", prog);
-}
-
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        print_usage(argv[0]);
-        return 1;
-    }
-
-    int fd = open("/dev/dri/renderD128", O_RDWR);
-    if (fd < 0) {
-        perror("Failed to open /dev/dri/renderD128");
-        return 1;
-    }
-
-    const char *cmd = argv[1];
-
-    if (strcmp(cmd, "id") == 0) {
-        struct drm_edu_get_id arg = {0};
-        if (ioctl(fd, DRM_IOCTL_EDU_GET_ID, &arg) < 0) {
-            perror("GET_ID failed");
-            close(fd);
-            return 1;
-        }
-        printf("Device ID: 0x%08x\n", arg.id);
-    } else if (strcmp(cmd, "live") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: 'live' requires an integer argument.\n");
-            print_usage(argv[0]);
-            close(fd);
-            return 1;
-        }
-        unsigned int val = strtoul(argv[2], NULL, 0);
-        struct drm_edu_test_liveness arg = { .val = val };
-        if (ioctl(fd, DRM_IOCTL_EDU_TEST_LIVENESS, &arg) < 0) {
-            perror("LIVENESS failed");
-            close(fd);
-            return 1;
-        }
-        printf("Liveness: written=0x%08x, read=0x%08x (expected: 0x%08x)\n",
-               val, arg.inv, ~val);
-    } else if (strcmp(cmd, "fact") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: 'fact' requires an integer argument.\n");
-            print_usage(argv[0]);
-            close(fd);
-            return 1;
-        }
-        unsigned int val = strtoul(argv[2], NULL, 0);
-        struct drm_edu_compute_factorial arg = { .val = val };
-        if (ioctl(fd, DRM_IOCTL_EDU_COMPUTE_FACTORIAL, &arg) < 0) {
-            perror("FACTORIAL failed");
-            close(fd);
-            return 1;
-        }
-        printf("Factorial: %u! = %u\n", val, arg.res);
-    } else if (strcmp(cmd, "irq") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: 'irq' requires an integer argument.\n");
-            print_usage(argv[0]);
-            close(fd);
-            return 1;
-        }
-        unsigned int val = strtoul(argv[2], NULL, 0);
-        struct drm_edu_test_irq arg = { .val = val };
-        if (ioctl(fd, DRM_IOCTL_EDU_TEST_IRQ, &arg) < 0) {
-            perror("IRQ failed");
-            close(fd);
-            return 1;
-        }
-        printf("IRQ triggered with value %u. Check dmesg for handled log.\n", val);
-    } else {
-        fprintf(stderr, "Error: Unknown command '%s'\n", cmd);
-        print_usage(argv[0]);
-        close(fd);
-        return 1;
-    }
-
-    close(fd);
-    return 0;
-}
-```
-
-### Compiling and Running
-
-Compile the code statically on your host machine, transfer the binary to the VM, and run it:
+Use the `test_edu` tool you compiled in the previous exercise to test the new functionality:
 
 ```bash
-# Compile statically on host:
-gcc -static -o test_edu test_edu.c
-
-# Run inside the VM (assuming your driver is loaded):
-./test_edu id
-./test_edu live 0x1234
+# Test factorial:
 ./test_edu fact 5
+
+# Test interrupt:
 ./test_edu irq 42
+
+# Check dmesg to see if the interrupt was handled:
+dmesg | tail
 ```
