@@ -28,7 +28,7 @@ The QEMU `edu` device has the following register specifications for this exercis
 
 ## Starter Code
 
-Instead of using a template with placeholder stubs, you can **copy the full example from the previous page ([Memory-Mapped I/O](mmio.md))** and use it as your starting point.
+Copy the full example from the previous page ([Memory-Mapped I/O](mmio.md)) and use it as your starting point.
 
 
 ### Tasks
