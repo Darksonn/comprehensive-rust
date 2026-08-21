@@ -12,24 +12,24 @@ SPDX-License-Identifier: CC-BY-4.0
 To write a PCI driver in Rust, we implement the **`pci::Driver`** trait and declare the hardware devices our module supports.
 
 ```rust,ignore
-use kernel::pci;
+use kernel::{device::Core, pci, prelude::*};
 
-struct EduDriver;
+struct TestPciDriver;
 
-struct EduDriverData {
+struct TestPciData {
 }
 
 // 1. Declare the PCI Device ID table:
 kernel::pci_device_table!(
     PCI_TABLE,
-    <EduDriver as pci::Driver>::IdInfo,
-    [(pci::DeviceId::from_id(pci::Vendor::QEMU, 0x11e8), ())]
+    <TestPciDriver as pci::Driver>::IdInfo,
+    [(pci::DeviceId::from_id(pci::Vendor::REDHAT, 0x5), ())]
 );
 
 // 2. Implement the pci::Driver trait:
-impl pci::Driver for EduDriver {
+impl pci::Driver for TestPciDriver {
     type IdInfo = ();
-    type Data<'bound> = EduDriverData;
+    type Data<'bound> = TestPciData;
 
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
@@ -37,26 +37,28 @@ impl pci::Driver for EduDriver {
         pdev: &'bound pci::Device<Core<'_>>,
         _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
-        dev_info!(pdev, "Probing QEMU EDU PCI device!\n");
-        Ok(EduDriverData {})
+        dev_info!(pdev, "Probing PCI testdev device!\n");
+        Ok(TestPciData {})
     }
 }
 
 // 3. Register the module:
 kernel::module_pci_driver! {
-    type: EduDriver,
+    type: TestPciDriver,
     name: "rust_driver_pci",
-    authors: ["Alice Ryhl"],
-    description: "QEMU PCI EDU driver",
+    authors: ["Your Name"],
+    description: "QEMU PCI testdev driver",
     license: "GPL v2",
 }
 ```
 
 ## How Probing Works
 
-- **Match:** When a PCI device with vendor `0x1234` (QEMU) and device ID `0x11e8` is detected, the kernel calls `probe()`.
+- **Match:** When a PCI device with vendor `0x1b36` (Red Hat) and device ID `0x0005` (the `pci-testdev` device) is detected, the kernel calls `probe()`.
 - **`pdev`:** Represents the bound PCI device, providing access to PCI config space, BARs, and IRQ allocation.
-- **Resource Management:** `probe()` returns the driver's private state (`EduDriverData`). When the device is unbound (e.g. on driver unload), this struct is dropped.
+- **Resource Management:** `probe()` returns the driver's private state (`TestPciData`). When the device is unbound (e.g. on driver unload), this struct is dropped.
+
+> **Note:** The QEMU `edu` device (used in the exercise) has vendor ID `0x1234` (QEMU) and device ID `0x11e8`.
 
 <details>
 
