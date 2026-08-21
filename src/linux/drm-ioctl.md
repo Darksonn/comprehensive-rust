@@ -9,16 +9,33 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Defining DRM IOCTLs
 
-DRM drivers expose functionality to userspace via **IOCTLs (Input/Output Controls)**. In Rust, these are declared safely using the `declare_drm_ioctls!` macro.
-
-*   **Automatic Copying:** The Rust DRM abstraction automatically handles copying arguments from userspace into kernel memory before the callback, and copying them back after the callback succeeds. No manual `copy_from_user` or `copy_to_user` is required.
-*   **Safe Callbacks:** IOCTL callbacks are type-safe and receive a mutable reference to the unpacked argument struct.
+DRM drivers expose functionality to userspace via **IOCTLs (Input/Output Controls)**. In Rust, these are declared safely using the `declare_drm_ioctls!` macro, which integrates directly with the kernel's UAPI (User API) headers.
 
 ---
 
-## Example: Registering a Dummy IOCTL
+## The UAPI Header
 
-Below, we extend our minimal DRM driver to expose the `GET_ID` IOCTL, returning a hardcoded dummy value.
+A shared C UAPI header defines the interface contract between the kernel driver and userspace.
+
+Below is a snippet of `include/uapi/drm/qemu_edu_drm.h` defining the `GET_ID` ioctl:
+
+```c
+struct drm_edu_get_id {
+	__u32 id;
+};
+
+#define DRM_EDU_GET_ID             0x00
+
+enum {
+	DRM_IOCTL_EDU_GET_ID            = DRM_IOR(DRM_COMMAND_BASE + DRM_EDU_GET_ID, struct drm_edu_get_id),
+};
+```
+
+---
+
+## Example: Registering the IOCTL in Rust
+
+When we compile the kernel, `bindgen` processes this C header, generating Rust types under `kernel::uapi`. We use the `declare_drm_ioctls!` macro to map these to our file callbacks:
 
 ```rust,ignore
 use kernel::{
@@ -26,24 +43,21 @@ use kernel::{
     drm,
     drm::ioctl,
     drm::Registered,
+    io::Io,
     pci,
     prelude::*,
     sync::aref::ARef,
     uapi,
 };
 
-// Reusing the edu DRM UAPI cmd identifier for testing
-#[allow(dead_code)]
-const EDU_GET_ID: u32 = kernel::ioctl::_IOR::<u32>('E' as u32, 0x00);
-
 struct TestPciDriver;
 
-// ... TestPciData, TestFile, TestObject, pci::Driver probe remain same as before ...
+// ... TestPciData, TestDrmData, TestFile, TestObject, pci::Driver probe remain same as before ...
 
 #[vtable]
 impl drm::Driver for TestPciDriver {
     type Data = ();
-    type RegistrationData<'drm> = ();
+    type RegistrationData<'drm> = TestDrmData<'drm>;
     type File = TestFile;
     type Object = drm::gem::Object<TestObject>;
     type ParentDevice<Ctx: DeviceContext> = pci::Device<Ctx>;
@@ -58,7 +72,8 @@ impl drm::Driver for TestPciDriver {
 
     const FEAT_RENDER: bool = true;
 
-    // 1. Declare the IOCTL in the driver vtable:
+    // 1. Declare the IOCTL in the driver vtable.
+    // The macro automatically looks for `DRM_IOCTL_EDU_GET_ID` in `kernel::uapi`.
     kernel::declare_drm_ioctls! {
         (EDU_GET_ID, drm_edu_get_id, ioctl::RENDER_ALLOW, TestFile::get_id),
     }
@@ -72,16 +87,16 @@ impl drm::file::DriverFile for TestFile {
     }
 }
 
-// 2. Implement the callback:
+// 2. Implement the callback using the generated UAPI struct:
 impl TestFile {
     fn get_id(
         _dev: &drm::Device<TestPciDriver, Registered>,
-        _reg_data: &(), // Shared registration data is empty for now
+        reg_data: &TestDrmData<'_>,
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        // Return a dummy ID value
-        arg.id = 0x12345678;
+        // Read the register using our MMIO BAR:
+        arg.id = reg_data.bar.read(regs::COUNT).count().get();
         Ok(0)
     }
 }
@@ -89,9 +104,20 @@ impl TestFile {
 
 ---
 
+## How the Macro Resolves IOCTLs
+
+The `declare_drm_ioctls!` macro performs several safety and mapping checks under the hood:
+
+*   **Prefix Generation:** For each entry `(cmd, struct, ...)` passed, the macro prepends `DRM_IOCTL_` to `cmd` (e.g. `EDU_GET_ID` becomes `DRM_IOCTL_EDU_GET_ID`) and imports it from `kernel::uapi::*`.
+*   **Compile-time Assertions:**
+    *   It asserts that the size of the Rust type (`uapi::struct`) exactly matches the size encoded in the C IOCTL command code (`_IOC_SIZE(cmd)`).
+    *   It asserts that the IOCTL command numbers are sequential starting from `DRM_COMMAND_BASE` (`0x40`) without gaps.
+
+---
+
 ## Userspace Interaction: Calling the IOCTL
 
-To verify our DRM driver works and we can call the IOCTL from userspace, we can write a simple C program that opens the DRM render node and calls our `EDU_GET_ID` IOCTL.
+To verify our DRM driver works, we can write a simple C program that opens the DRM render node and calls our `EDU_GET_ID` IOCTL.
 
 Save the following code as `test_ioctl.c`:
 
@@ -124,7 +150,7 @@ int main() {
         return 1;
     }
 
-    printf("Device ID: 0x%08x (expected: 0x12345678)\n", arg.id);
+    printf("Device ID: 0x%08x (expected: count value from BAR)\n", arg.id);
     close(fd);
     return 0;
 }
@@ -144,12 +170,8 @@ gcc -static -o test_ioctl test_ioctl.c
 
 <details>
 
-- Explain the arguments of `declare_drm_ioctls!`:
-  - `EDU_GET_ID`: The IOCTL code.
-  - `drm_edu_get_id`: The UAPI struct name (the macro resolves this to `uapi::drm_edu_get_id`).
-  - `ioctl::RENDER_ALLOW`: Permission flags (allows calling from render nodes).
-  - `TestFile::get_id`: The handler function.
-- Point out that the handler function must return a `Result<u32>`, where `0` indicates success.
-- Mention that the `_reg_data` argument allows the handler to access shared driver state (like mapped BARs) which we will cover next.
+- Walk through how `bindgen` converts the UAPI headers into the `uapi` module in Rust.
+- Emphasize that the compile-time size check prevents mismatches between the C structure layout and the Rust structure layout (which would otherwise lead to memory corruption during ioctl copying).
+- Explain that `DRM_COMMAND_BASE` is `0x40`, so `DRM_IOCTL_EDU_GET_ID` has command number `0x40`.
 
 </details>
