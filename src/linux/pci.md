@@ -38,7 +38,7 @@ impl pci::Driver for TestPciDriver {
         _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         dev_info!(pdev, "Probing PCI testdev device!\n");
-        Ok(TestPciData {})
+        try_pin_init!(TestPciData {})
     }
 }
 

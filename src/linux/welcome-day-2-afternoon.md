@@ -11,6 +11,8 @@ SPDX-License-Identifier: CC-BY-4.0
 # Day 2 Afternoon
 
 In the afternoon session of Day 2, we dive into hardware events and write a full PCI device driver. We will cover:
+- Memory-Mapped I/O (MMIO).
+- IO Polling (sleeping poll).
 - Interrupt Handling (MSI vectors).
 - A hands-on exercise to write a PCI driver for the QEMU `edu` device.
 

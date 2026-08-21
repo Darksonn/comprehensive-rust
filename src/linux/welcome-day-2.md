@@ -16,7 +16,7 @@ In the morning session of Day 2, we focus on safe C abstractions and interacting
 - How the build system generates bindings with `bindgen`.
 - Handling `static inline` C functions via helpers.
 - The PCI subsystem.
-- Memory-Mapped I/O (MMIO) and register access.
+- The DRM Subsystem.
 
 ## Schedule
 

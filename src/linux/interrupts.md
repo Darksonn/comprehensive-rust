@@ -36,10 +36,6 @@ use kernel::{
     uapi,
 };
 
-// Note: We reuse the edu DRM UAPI types here to avoid introducing new UAPI headers.
-#[allow(dead_code)]
-const EDU_GET_ID: u32 = kernel::ioctl::_IOR::<u32>('E' as u32, 0x00);
-
 mod regs {
     use kernel::io::register;
     register! {
@@ -173,7 +169,7 @@ impl pci::Driver for TestPciDriver {
                     irq::Flags::SHARED,
                     c"pci_testdev_drm",
                     try_pin_init!(TestIrqHandler {
-                        pdev: &**pdev,
+                        pdev: pdev.as_ref(),
                         bar,
                     }),
                 )
