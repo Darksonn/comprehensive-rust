@@ -60,6 +60,15 @@ kernel::module_pci_driver! {
 
 > **Note:** The QEMU `edu` device (used in the exercise) has vendor ID `0x1234` (QEMU) and device ID `0x11e8`.
 
+---
+
+## Running in QEMU
+
+To test your drivers, you must boot the VM with the corresponding virtual PCI device virtualized by QEMU:
+
+*   **For `pci-testdev` (slides):** Append `-device pci-testdev` to the QEMU command line.
+*   **For `edu` (exercise):** Append `-device edu` to the QEMU command line.
+
 <details>
 
 - Mention that `module_pci_driver!` expands to the C-side boilerplate `module_init` and `module_exit` hooks registering with the PCI core.
