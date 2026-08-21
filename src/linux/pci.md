@@ -66,8 +66,8 @@ kernel::module_pci_driver! {
 
 To test your drivers, you must boot the VM with the corresponding virtual PCI device virtualized by QEMU:
 
-*   **For `pci-testdev` (slides):** Append `-device pci-testdev` to the QEMU command line.
-*   **For `edu` (exercise):** Append `-device edu` to the QEMU command line.
+*   **For `pci-testdev`:** Append `-device pci-testdev` to the QEMU command line.
+*   **For `edu`:** Append `-device edu` to the QEMU command line.
 
 <details>
 
