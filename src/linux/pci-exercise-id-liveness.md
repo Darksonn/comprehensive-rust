@@ -28,9 +28,7 @@ The QEMU `edu` device has the following register specifications for this exercis
 
 ## Starter Code
 
-Instead of using a template with placeholder stubs, you can **copy the full example from the previous page ([Memory-Mapped I/O](mmio.md))** and use it as your starting point. 
-
-Overwrite the contents of `samples/rust/rust_driver_pci_edu_drm.rs` in your kernel tree with that example, and then modify it to fit the `edu` device.
+Instead of using a template with placeholder stubs, you can **copy the full example from the previous page ([Memory-Mapped I/O](mmio.md))** and use it as your starting point.
 
 
 ### Tasks
