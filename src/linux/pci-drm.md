@@ -31,6 +31,9 @@ struct TestPciData<'bound> {
     _reg: drm::Registration<'bound, TestPciDriver>,
 }
 
+#[pin_data]
+struct TestDrmData {}
+
 struct TestFile;
 
 #[pin_data]
@@ -52,9 +55,11 @@ impl pci::Driver for TestPciDriver {
 
             let unreg_dev = drm::UnregisteredDevice::<TestPciDriver>::new(pdev, Ok(()))?;
 
-            // We use () for RegistrationData as we don't share any data yet.
+            // Initialize the shared DRM registration data
+            let reg_data = try_pin_init!(TestDrmData {});
+
             let reg = unsafe {
-                drm::Registration::new(pdev.as_ref(), unreg_dev, (), 0)?
+                drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data, 0)?
             };
 
             Ok(try_pin_init!(TestPciData {
@@ -68,7 +73,7 @@ impl pci::Driver for TestPciDriver {
 #[vtable]
 impl drm::Driver for TestPciDriver {
     type Data = ();
-    type RegistrationData<'drm> = ();
+    type RegistrationData<'drm> = TestDrmData;
     type File = TestFile;
     type Object = drm::gem::Object<TestObject>;
     type ParentDevice<Ctx: DeviceContext> = pci::Device<Ctx>;

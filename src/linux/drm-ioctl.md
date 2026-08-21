@@ -51,12 +51,15 @@ use kernel::{
 
 struct TestPciDriver;
 
+#[pin_data]
+struct TestDrmData {}
+
 // ... TestPciData, TestFile, TestObject, pci::Driver probe remain same as before ...
 
 #[vtable]
 impl drm::Driver for TestPciDriver {
     type Data = ();
-    type RegistrationData<'drm> = (); // No shared data yet
+    type RegistrationData<'drm> = TestDrmData;
     type File = TestFile;
     type Object = drm::gem::Object<TestObject>;
     type ParentDevice<Ctx: DeviceContext> = pci::Device<Ctx>;
@@ -90,7 +93,7 @@ impl drm::file::DriverFile for TestFile {
 impl TestFile {
     fn get_id(
         _dev: &drm::Device<TestPciDriver, Registered>,
-        _reg_data: &(), // Shared registration data is empty
+        _reg_data: &TestDrmData,
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
