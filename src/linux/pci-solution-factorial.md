@@ -10,6 +10,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 You can find the solution code below. This code builds on top of the **Device ID and Liveness** solution, adding register definitions and the `compute_factorial` callback using `read_poll_timeout` to sleep-poll the hardware status register.
 
+It follows the same structure, naming conventions, and order as the example in the [Memory-Mapped I/O](mmio.md) slide.
+
 ```rust
 // SPDX-License-Identifier: GPL-2.0
 //! Rust PCI EDU driver sample (Part 2: Factorial).
@@ -46,7 +48,82 @@ mod regs {
     pub(super) const END: usize = 0x80;
 }
 
+struct EduDriver;
+
+#[pin_data]
+struct EduPciData<'bound> {
+    pdev: ARef<pci::Device>,
+    _reg: drm::Registration<'bound, EduDriver>,
+}
+
+#[pin_data]
+struct EduDrmData<'drm> {
+    bar: pci::Bar<'drm, { regs::END }>,
+}
+
 struct EduFile;
+
+#[pin_data]
+struct EduObject {}
+
+impl pci::Driver for EduDriver {
+    type IdInfo = ();
+    type Data<'bound> = EduPciData<'bound>;
+
+    const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
+
+    fn probe<'bound>(
+        pdev: &'bound pci::Device<Core<'_>>,
+        _info: Option<&'bound Self::IdInfo>,
+    ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
+        pin_init::pin_init_scope(move || {
+            pdev.enable_device_mem()?;
+            pdev.set_master();
+
+            let bar = pdev.iomap_region_sized::<{ regs::END }>(0, c"qemu_edu_drm")?;
+
+            let unreg_dev = drm::UnregisteredDevice::<EduDriver>::new(pdev, Ok(()))?;
+
+            let reg_data = try_pin_init!(EduDrmData {
+                bar,
+            });
+
+            let reg = unsafe {
+                drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data, 0)?
+            };
+
+            Ok(try_pin_init!(EduPciData {
+                pdev: pdev.into(),
+                _reg: reg,
+            }))
+        })
+    }
+}
+
+#[vtable]
+impl drm::Driver for EduDriver {
+    type Data = ();
+    type RegistrationData<'drm> = EduDrmData<'drm>;
+    type File = EduFile;
+    type Object = drm::gem::Object<EduObject>;
+    type ParentDevice<Ctx: DeviceContext> = pci::Device<Ctx>;
+
+    const INFO: drm::DriverInfo = drm::DriverInfo {
+        major: 1,
+        minor: 0,
+        patchlevel: 0,
+        name: c"qemu-edu-drm",
+        desc: c"QEMU PCI EDU DRM Driver",
+    };
+
+    const FEAT_RENDER: bool = true;
+
+    kernel::declare_drm_ioctls! {
+        (EDU_GET_ID, drm_edu_get_id, ioctl::RENDER_ALLOW, EduFile::get_id),
+        (EDU_TEST_LIVENESS, drm_edu_test_liveness, ioctl::RENDER_ALLOW, EduFile::test_liveness),
+        (EDU_COMPUTE_FACTORIAL, drm_edu_compute_factorial, ioctl::RENDER_ALLOW, EduFile::compute_factorial),
+    }
+}
 
 impl drm::file::DriverFile for EduFile {
     type Driver = EduDriver;
@@ -54,13 +131,6 @@ impl drm::file::DriverFile for EduFile {
     fn open(_dev: &drm::Device<EduDriver>) -> Result<Pin<KBox<Self>>> {
         Ok(KBox::new(Self, GFP_KERNEL)?.into())
     }
-}
-
-struct EduDriver;
-
-#[pin_data]
-struct EduDrmData<'drm> {
-    bar: pci::Bar<'drm, { regs::END }>,
 }
 
 impl EduFile {
@@ -106,9 +176,6 @@ impl EduFile {
     }
 }
 
-#[pin_data]
-struct EduObject {}
-
 impl drm::gem::DriverObject for EduObject {
     type Driver = EduDriver;
     type Args = ();
@@ -122,76 +189,11 @@ impl drm::gem::DriverObject for EduObject {
     }
 }
 
-#[vtable]
-impl drm::Driver for EduDriver {
-    type Data = ();
-    type RegistrationData<'drm> = EduDrmData<'drm>;
-    type File = EduFile;
-    type Object = drm::gem::Object<EduObject>;
-    type ParentDevice<Ctx: DeviceContext> = pci::Device<Ctx>;
-
-    const INFO: drm::DriverInfo = drm::DriverInfo {
-        major: 1,
-        minor: 0,
-        patchlevel: 0,
-        name: c"qemu-edu-drm",
-        desc: c"QEMU PCI EDU DRM Driver",
-    };
-
-    const FEAT_RENDER: bool = true;
-
-    kernel::declare_drm_ioctls! {
-        (EDU_GET_ID, drm_edu_get_id, ioctl::RENDER_ALLOW, EduFile::get_id),
-        (EDU_TEST_LIVENESS, drm_edu_test_liveness, ioctl::RENDER_ALLOW, EduFile::test_liveness),
-        (EDU_COMPUTE_FACTORIAL, drm_edu_compute_factorial, ioctl::RENDER_ALLOW, EduFile::compute_factorial),
-    }
-}
-
-#[pin_data]
-struct EduPciData<'bound> {
-    pdev: ARef<pci::Device>,
-    _reg: drm::Registration<'bound, EduDriver>,
-}
-
 kernel::pci_device_table!(
     PCI_TABLE,
     <EduDriver as pci::Driver>::IdInfo,
     [(pci::DeviceId::from_id(pci::Vendor::QEMU, 0x11e8), ())]
 );
-
-impl pci::Driver for EduDriver {
-    type IdInfo = ();
-    type Data<'bound> = EduPciData<'bound>;
-
-    const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
-
-    fn probe<'bound>(
-        pdev: &'bound pci::Device<Core<'_>>,
-        _info: Option<&'bound Self::IdInfo>,
-    ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
-        pin_init::pin_init_scope(move || {
-            pdev.enable_device_mem()?;
-            pdev.set_master();
-
-            let bar = pdev.iomap_region_sized::<{ regs::END }>(0, c"qemu_edu_drm")?;
-
-            let unreg_dev = drm::UnregisteredDevice::<EduDriver>::new(pdev, Ok(()))?;
-
-            let reg_data = try_pin_init!(EduDrmData {
-                bar,
-            });
-
-            let reg = unsafe {
-                drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data, 0)?
-            };
-
-            Ok(try_pin_init!(EduPciData {
-                pdev: pdev.into(),
-                _reg: reg,
-            }))
-        })
-    }
-}
 
 kernel::module_pci_driver! {
     type: EduDriver,
