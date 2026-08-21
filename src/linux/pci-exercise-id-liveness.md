@@ -30,14 +30,12 @@ The QEMU `edu` device has the following register specifications for this exercis
 
 Copy the full example from the previous page ([Memory-Mapped I/O](mmio.md)) and use it as your starting point.
 
-
 ### Tasks
 
 1.  **Map BAR 0:** In `probe`, enable device memory and map BAR 0.
 2.  **Define Registers:** Define `ID` and `LIVENESS` in the `register!` macro.
-3.  **DRM Registration:** Store the mapped `Bar` in `EduDrmData` (the DRM `RegistrationData` struct) and register the DRM device.
-4.  **Implement `get_id` IOCTL:** Read the `ID` register and write it to `arg.id`.
-5.  **Implement `test_liveness` IOCTL:** Write `arg.val` to the `LIVENESS` register, read it back, and write the bitwise NOT result to `arg.inv`.
+3.  **Implement `get_id` IOCTL:** Read the `ID` register and write it to `arg.id`.
+4.  **Implement `test_liveness` IOCTL:** Write `arg.val` to the `LIVENESS` register, read it back, and write the result to `arg.inv`.
 
 ---
 
