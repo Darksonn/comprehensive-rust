@@ -43,7 +43,7 @@ Instead of using a template with placeholder stubs, you can **copy the full exam
 
 ## Userspace Test Program
 
-Save the following code as `test_edu.c` on your host machine. This program contains commands for all parts of the exercise (including the upcoming factorial and interrupt tasks).
+Save the following code as `test_edu.c` on your host machine:
 
 ```c
 #include <fcntl.h>
@@ -63,31 +63,16 @@ struct drm_edu_test_liveness {
     __u32 inv;
 };
 
-struct drm_edu_compute_factorial {
-    __u32 val;
-    __u32 res;
-};
-
-struct drm_edu_test_irq {
-    __u32 val;
-};
-
 #define DRM_EDU_GET_ID             0x00
 #define DRM_EDU_TEST_LIVENESS      0x01
-#define DRM_EDU_COMPUTE_FACTORIAL  0x02
-#define DRM_EDU_TEST_IRQ           0x03
 
 #define DRM_IOCTL_EDU_GET_ID            DRM_IOR(DRM_COMMAND_BASE + DRM_EDU_GET_ID, struct drm_edu_get_id)
 #define DRM_IOCTL_EDU_TEST_LIVENESS     DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_TEST_LIVENESS, struct drm_edu_test_liveness)
-#define DRM_IOCTL_EDU_COMPUTE_FACTORIAL DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_COMPUTE_FACTORIAL, struct drm_edu_compute_factorial)
-#define DRM_IOCTL_EDU_TEST_IRQ          DRM_IOW(DRM_COMMAND_BASE + DRM_EDU_TEST_IRQ, struct drm_edu_test_irq)
 
 void print_usage(const char *prog) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "  %s id              - Get device ID\n", prog);
     fprintf(stderr, "  %s live <value>    - Test liveness (writes value, expects ~value)\n", prog);
-    fprintf(stderr, "  %s fact <value>    - Compute factorial of value\n", prog);
-    fprintf(stderr, "  %s irq <value>     - Trigger interrupt with value\n", prog);
 }
 
 int main(int argc, char *argv[]) {
@@ -128,36 +113,6 @@ int main(int argc, char *argv[]) {
         }
         printf("Liveness: written=0x%08x, read=0x%08x (expected: 0x%08x)\n",
                val, arg.inv, ~val);
-    } else if (strcmp(cmd, "fact") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: 'fact' requires an integer argument.\n");
-            print_usage(argv[0]);
-            close(fd);
-            return 1;
-        }
-        unsigned int val = strtoul(argv[2], NULL, 0);
-        struct drm_edu_compute_factorial arg = { .val = val };
-        if (ioctl(fd, DRM_IOCTL_EDU_COMPUTE_FACTORIAL, &arg) < 0) {
-            perror("FACTORIAL failed");
-            close(fd);
-            return 1;
-        }
-        printf("Factorial: %u! = %u\n", val, arg.res);
-    } else if (strcmp(cmd, "irq") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: 'irq' requires an integer argument.\n");
-            print_usage(argv[0]);
-            close(fd);
-            return 1;
-        }
-        unsigned int val = strtoul(argv[2], NULL, 0);
-        struct drm_edu_test_irq arg = { .val = val };
-        if (ioctl(fd, DRM_IOCTL_EDU_TEST_IRQ, &arg) < 0) {
-            perror("IRQ failed");
-            close(fd);
-            return 1;
-        }
-        printf("IRQ triggered with value %u. Check dmesg for handled log.\n", val);
     } else {
         fprintf(stderr, "Error: Unknown command '%s'\n", cmd);
         print_usage(argv[0]);
