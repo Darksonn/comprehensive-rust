@@ -13,11 +13,11 @@ For graphics cards and accelerators, the **Direct Rendering Manager (DRM)** subs
 
 *   **Single Driver Type:** The same type `TestPciDriver` can implement both `pci::Driver` and `drm::Driver` traits.
 *   **SRCU Protection:** DRM uses a sleepable SRCU critical section (`drm::RegistrationGuard`) to guarantee memory safety during IOCTLs.
-*   **Registration Data:** We map the BAR registers during `probe` and share them with the DRM registration via `TestDrmData` so that future IOCTLs can access them.
+*   **Minimal Registration:** At this stage, we register a bare DRM device without mapping BARs or exposing IOCTLs.
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
-//! DRM PCI driver with MMIO register access (no ioctls).
+//! Minimal DRM PCI driver (no MMIO or IOCTLs).
 
 use kernel::{
     device::{Core, DeviceContext},
@@ -27,31 +27,12 @@ use kernel::{
     sync::aref::ARef,
 };
 
-mod regs {
-    use kernel::io::register;
-    register! {
-        pub(super) DATA(u8) @ 0x8 {
-            7:0 data;
-        }
-        pub(super) COUNT(u32) @ 0xC {
-            31:0 count;
-        }
-    }
-    pub(super) const END: usize = 0x10;
-}
-
 struct TestPciDriver;
 
 #[pin_data]
 struct TestPciData<'bound> {
     pdev: ARef<pci::Device>,
     _reg: drm::Registration<'bound, TestPciDriver>,
-}
-
-// Data shared with the DRM subsystem
-#[pin_data]
-struct TestDrmData<'drm> {
-    bar: pci::Bar<'drm, { regs::END }>,
 }
 
 struct TestFile;
@@ -73,19 +54,11 @@ impl pci::Driver for TestPciDriver {
             pdev.enable_device_mem()?;
             pdev.set_master();
 
-            // 1. Map the BAR registers:
-            let bar = pdev.iomap_region_sized::<{ regs::END }>(0, c"pci_testdev_drm")?;
-
             let unreg_dev = drm::UnregisteredDevice::<TestPciDriver>::new(pdev, Ok(()))?;
 
-            // 2. Store the Bar in the shared DRM registration data:
-            let reg_data = try_pin_init!(TestDrmData {
-                bar,
-            });
-
-            // 3. Register the DRM device with the shared data:
+            // We use () for RegistrationData as we don't share any data yet.
             let reg = unsafe {
-                drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data, 0)?
+                drm::Registration::new(pdev.as_ref(), unreg_dev, (), 0)?
             };
 
             Ok(try_pin_init!(TestPciData {
@@ -99,7 +72,7 @@ impl pci::Driver for TestPciDriver {
 #[vtable]
 impl drm::Driver for TestPciDriver {
     type Data = ();
-    type RegistrationData<'drm> = TestDrmData<'drm>;
+    type RegistrationData<'drm> = ();
     type File = TestFile;
     type Object = drm::gem::Object<TestObject>;
     type ParentDevice<Ctx: DeviceContext> = pci::Device<Ctx>;

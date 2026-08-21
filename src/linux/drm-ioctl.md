@@ -33,7 +33,7 @@ enum {
 
 ---
 
-## Example: Registering the IOCTL in Rust
+## Example: Registering a Dummy IOCTL in Rust
 
 When we compile the kernel, `bindgen` processes this C header, generating Rust types under `kernel::uapi`. We use the `declare_drm_ioctls!` macro to map these to our file callbacks:
 
@@ -43,7 +43,6 @@ use kernel::{
     drm,
     drm::ioctl,
     drm::Registered,
-    io::Io,
     pci,
     prelude::*,
     sync::aref::ARef,
@@ -52,12 +51,12 @@ use kernel::{
 
 struct TestPciDriver;
 
-// ... TestPciData, TestDrmData, TestFile, TestObject, pci::Driver probe remain same as before ...
+// ... TestPciData, TestFile, TestObject, pci::Driver probe remain same as before ...
 
 #[vtable]
 impl drm::Driver for TestPciDriver {
     type Data = ();
-    type RegistrationData<'drm> = TestDrmData<'drm>;
+    type RegistrationData<'drm> = (); // No shared data yet
     type File = TestFile;
     type Object = drm::gem::Object<TestObject>;
     type ParentDevice<Ctx: DeviceContext> = pci::Device<Ctx>;
@@ -87,16 +86,16 @@ impl drm::file::DriverFile for TestFile {
     }
 }
 
-// 2. Implement the callback using the generated UAPI struct:
+// 2. Implement the callback using a dummy value (no BAR access yet):
 impl TestFile {
     fn get_id(
         _dev: &drm::Device<TestPciDriver, Registered>,
-        reg_data: &TestDrmData<'_>,
+        _reg_data: &(), // Shared registration data is empty
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        // Read the register using our MMIO BAR:
-        arg.id = reg_data.bar.read(regs::COUNT).count().get();
+        // Return a dummy ID value for now
+        arg.id = 0x12345678;
         Ok(0)
     }
 }
@@ -150,7 +149,7 @@ int main() {
         return 1;
     }
 
-    printf("Device ID: 0x%08x (expected: count value from BAR)\n", arg.id);
+    printf("Device ID: 0x%08x (expected: 0x12345678)\n", arg.id);
     close(fd);
     return 0;
 }
