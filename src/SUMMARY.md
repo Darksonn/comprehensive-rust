@@ -431,6 +431,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - [The DRM Subsystem](linux/drm.md)
   - [Exposing via the DRM Subsystem](linux/pci-drm.md)
   - [Defining DRM IOCTLs](linux/drm-ioctl.md)
+  - [Exercise: Minimal DRM Driver](linux/pci-exercise-drm.md)
+  - [Solution: Minimal DRM Driver](linux/pci-solution-drm.md)
 
 # Rust for Linux: Day 2 Afternoon
 

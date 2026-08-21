@@ -8,9 +8,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Solution: Device ID and Liveness
 
-You can find the solution code below. This code maps BAR 0 and implements the `GET_ID` and `TEST_LIVENESS` IOCTLs, without any interrupt handling.
-
-It follows the same structure, naming conventions, and order as the example in the [Memory-Mapped I/O](mmio.md) slide.
+You can find the solution code below. This code builds on top of the **Minimal DRM Driver** solution, adding MMIO mapping and real register reads for the `GET_ID` and `TEST_LIVENESS` IOCTLs.
 
 ```rust
 // SPDX-License-Identifier: GPL-2.0

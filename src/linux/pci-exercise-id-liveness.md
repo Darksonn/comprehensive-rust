@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Exercise: Device ID and Liveness
 
-In this exercise, you will begin implementing a DRM PCI driver for the QEMU `edu` device. You will focus on mapping the MMIO BAR and implementing the `GET_ID` and `TEST_LIVENESS` IOCTLs.
+In this exercise, you will build on top of your minimal DRM PCI driver for the QEMU `edu` device. You will focus on mapping the MMIO BAR and implementing the real `GET_ID` and `TEST_LIVENESS` IOCTLs.
 
 ---
 
@@ -28,7 +28,7 @@ The QEMU `edu` device has the following register specifications for this exercis
 
 ## Starter Code
 
-Copy the full example from the previous page ([Memory-Mapped I/O](mmio.md)) and use it as your starting point.
+You will build on top of your solution from the [Minimal DRM Driver](pci-exercise-drm.md) exercise.
 
 ### Tasks
 
