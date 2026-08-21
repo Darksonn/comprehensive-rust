@@ -45,29 +45,21 @@ grep -H 0x11e8 /sys/bus/pci/devices/*/device
 
 ---
 
-## Hardware Register Map
+## Hardware Information
 
-The device registers are located at the following offsets inside **BAR 0** (size `0x80` bytes). The bolded registers are the ones introduced in this exercise:
+The QEMU `edu` device has the following register specifications for interrupts:
 
-| Register | Offset | Access | Width | Description |
-| :--- | :---: | :---: | :---: | :--- |
-| `ID` | `0x00` | RO | 32-bit | Returns identification register: `0x010000ed`. |
-| `LIVENESS` | `0x04` | RW | 32-bit | Writing value `X` returns `~X` when read back. |
-| `FACTORIAL` | `0x08` | RW | 32-bit | Write `N` to start computing `N!`. Read it back to get the result. |
-| `STATUS` | `0x20` | RO | 32-bit | Bit 0: `1` if computing factorial, `0` if idle.<br>Bit 7: `1` if an interrupt is raised. |
-| **`IRQ_STATUS`** | `0x24` | RO | 32-bit | Read pending interrupt value. |
-| **`IRQ_ACKNOWLEDGE`** | `0x64` | WO | 32-bit | Write the pending interrupt value back to clear/acknowledge it. |
-| **`IRQ_RAISE`** | `0x60` | WO | 32-bit | Write any value here to raise an interrupt (MSI) for testing. |
+*   **`IRQ_STATUS`** (Offset `0x24`, RO, 32-bit): Read pending interrupt status.
+*   **`IRQ_ACKNOWLEDGE`** (Offset `0x64`, WO, 32-bit): Write the pending interrupt value back to clear/acknowledge it.
+*   **`IRQ_RAISE`** (Offset `0x60`, WO, 32-bit): Write any value here to raise an interrupt (MSI) for testing.
+*   **`STATUS`** (Offset `0x20`, RO, 32-bit):
+    *   Bit 7: `1` if an interrupt is raised.
 
 ---
 
 ## Tasks
 
-### 1. Refactor to Share the BAR with the Interrupt Handler
-
-Previously, you stored the `Bar` directly in `EduDrmData`. Because the interrupt handler also needs to access the BAR, you must move it:
-
-1.  Define the `EduIrqHandler` struct to hold the `Bar`:
+1.  **Refactor to Share the BAR:** Move the `Bar` from `EduDrmData` into a new `EduIrqHandler` struct:
     ```rust
     #[pin_data]
     struct EduIrqHandler<'bound> {
@@ -75,7 +67,7 @@ Previously, you stored the `Bar` directly in `EduDrmData`. Because the interrupt
         bar: pci::Bar<'bound, { regs::END }>,
     }
     ```
-2.  Update `EduDrmData` to hold the interrupt registration instead of the BAR:
+    Update `EduDrmData` to hold the `irq::Registration` instead of the BAR:
     ```rust
     #[pin_data]
     struct EduDrmData<'drm> {
@@ -83,34 +75,25 @@ Previously, you stored the `Bar` directly in `EduDrmData`. Because the interrupt
         _irq: irq::Registration<'drm, EduIrqHandler<'drm>>,
     }
     ```
-3.  Update your IOCTL callbacks (`get_id`, `test_liveness`, `compute_factorial`) to access the BAR via the interrupt handler:
+    Update your IOCTL callbacks (`get_id`, `test_liveness`, `compute_factorial`) to access the BAR via the interrupt handler:
     ```rust
     let bar = &reg_data._irq.handler().bar;
     ```
-
-### 2. Implement the Interrupt Handler
-
-Implement the `irq::Handler` trait for `EduIrqHandler`:
-1.  Read the pending interrupt status from `IRQ_STATUS`.
-2.  If the status is `0`, return `irq::IrqReturn::None` (it wasn't our interrupt).
-3.  Log a message using `dev_info!`.
-4.  Write the status value back to `IRQ_ACKNOWLEDGE` to acknowledge it.
-5.  Return `irq::IrqReturn::Handled`.
-
-### 3. Request IRQ in `probe`
-
-In your `probe` function, allocate and request the interrupt:
-1.  Allocate 1 MSI vector using `pdev.alloc_irq_vectors(1, 1, pci::IrqTypes::all())?`.
-2.  Get the vector number using `*vectors.start()`.
-3.  Request the IRQ using `pdev.request_irq`. Pass the vector, `irq::Flags::SHARED`, and an initialized `EduIrqHandler`.
+2.  **Implement the Interrupt Handler:** Implement the `irq::Handler` trait for `EduIrqHandler`:
+    *   Read the pending interrupt status from `IRQ_STATUS`.
+    *   If the status is `0`, return `irq::IrqReturn::None` (it wasn't our interrupt).
+    *   Log a message using `dev_info!`.
+    *   Write the status value back to `IRQ_ACKNOWLEDGE` to acknowledge it.
+    *   Return `irq::IrqReturn::Handled`.
+3.  **Request IRQ in `probe`:** In your `probe` function, allocate and request the interrupt:
+    *   Allocate 1 MSI vector using `pdev.alloc_irq_vectors(1, 1, pci::IrqTypes::all())?`.
+    *   Get the vector number using `*vectors.start()`.
+    *   Request the IRQ using `pdev.request_irq`. Pass the vector, `irq::Flags::SHARED`, and an initialized `EduIrqHandler`.
     *   *Note:* `request_irq` is `unsafe` because you must guarantee that the handler is valid as long as the IRQ is registered. In our case, the registration is stored in `EduDrmData` and is dropped when the DRM device is unregistered, which happens before the PCI device is unbound. Write a safety comment explaining this.
-4.  Pass the `irq_init` registration to `EduDrmData`.
-
-### 4. Implement `test_irq` IOCTL
-
-Implement the `test_irq` callback:
-1.  Write `arg.val` to the `IRQ_RAISE` register to trigger a hardware interrupt.
-2.  Register the `EDU_TEST_IRQ` IOCTL in `declare_drm_ioctls!` mapping to this callback.
+    *   Pass the `irq_init` registration to `EduDrmData`.
+4.  **Implement `test_irq` IOCTL:**
+    *   Write `arg.val` to the `IRQ_RAISE` register to trigger a hardware interrupt.
+    *   Register the `EDU_TEST_IRQ` IOCTL in `declare_drm_ioctls!` mapping to this callback.
 
 ---
 

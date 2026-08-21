@@ -443,7 +443,7 @@ SPDX-License-Identifier: CC-BY-4.0
   - [Solution: Factorial](linux/pci-solution-factorial.md)
 - [Interrupts](linux/interrupts.md)
   - [Exercise: Interrupts](linux/pci-exercise.md)
-  - [Solution: QEMU EDU PCI DRM Driver](linux/pci-solution.md)
+  - [Solution: Interrupts](linux/pci-solution.md)
 
 ---
 

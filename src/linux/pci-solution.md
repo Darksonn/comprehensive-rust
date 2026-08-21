@@ -7,9 +7,9 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Solution: QEMU EDU PCI DRM Driver
+# Solution: Interrupts
 
-Here is the complete solution for the QEMU EDU PCI DRM driver, wrapping the hardware register mapping, MSI interrupts, and the DRM class device interface.
+You can find the solution code below. This code builds on top of the **Factorial** solution, adding MSI interrupt handling (allocating vectors, requesting IRQ, and implementing the interrupt handler) and the `test_irq` IOCTL.
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
