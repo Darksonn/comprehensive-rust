@@ -11,10 +11,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 For graphics cards and accelerators, the **Direct Rendering Manager (DRM)** subsystem is preferred. A DRM device (`/dev/dri/cardX`) is registered using the `drm::Driver` trait.
 
-*   **Single Driver Type:** The same type `TestPciDriver` can implement both `pci::Driver` and `drm::Driver` traits.
-*   **SRCU Protection:** DRM uses a sleepable SRCU critical section (`drm::RegistrationGuard`) to guarantee memory safety during IOCTLs.
-*   **Minimal Registration:** At this stage, we register a bare DRM device without mapping BARs or exposing IOCTLs.
-
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
 //! Minimal DRM PCI driver (no MMIO or IOCTLs).
@@ -126,7 +122,16 @@ kernel::module_pci_driver! {
 }
 ```
 
-*   **Safe Unbind:** If the PCI card is unplugged or unbound, DRM prevents new IOCTL calls and safely revokes existing ones while the SRCU section finishes.
+---
+
+## Device Node Names
+
+Unlike `miscdevice` (which requires a hardcoded string or manual unique name generation), the DRM subsystem manages device node filenames automatically:
+
+*   **Dynamic Minor Allocation:** The DRM core assigns a sequential minor number to each registered device instance.
+*   **Automatic `/dev` Nodes:**
+    *   `/dev/dri/cardX` (Primary node, e.g., `/dev/dri/card0`)
+    *   `/dev/dri/renderDXX` (Render node, e.g., `/dev/dri/renderD128`)
 
 <details>
 
