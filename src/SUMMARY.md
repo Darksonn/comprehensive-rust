@@ -429,6 +429,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - [The PCI Subsystem](linux/pci.md)
   - [Exposing via miscdevice](linux/pci-miscdevice.md)
   - [Exposing via the DRM Subsystem](linux/pci-drm.md)
+  - [Defining DRM IOCTLs](linux/drm-ioctl.md)
 - [Memory-Mapped I/O](linux/mmio.md)
 
 # Rust for Linux: Day 2 Afternoon
