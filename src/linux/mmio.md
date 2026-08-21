@@ -182,7 +182,7 @@ kernel::module_pci_driver! {
 
 ## Verifying the Integration
 
-If you compile and load this driver, you can run the `test_ioctl` program compiled in the previous slide:
+If you compile and load this driver, you can run the `test_ioctl` program compiled in the [Defining DRM IOCTLs](drm-ioctl.md) slide:
 
 ```bash
 # Run the test binary again:

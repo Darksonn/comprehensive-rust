@@ -37,7 +37,9 @@ The QEMU `edu` device has the following register specifications for this exercis
 
 ## Testing
 
-Use the `test_edu` tool you compiled in the first exercise to test the new functionality:
+Update your `test_edu.c` program on your host machine to support the new `fact` command (similar to how `live` was implemented), recompile it statically, and copy it to the VM.
+
+Then test the new functionality:
 
 ```bash
 # Compute factorial of 5 (expects 120):
