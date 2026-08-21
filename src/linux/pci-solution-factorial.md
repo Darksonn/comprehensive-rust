@@ -10,7 +10,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 You can find the solution code below. This code builds on top of the **Device ID and Liveness** solution, adding register definitions and the `compute_factorial` callback using `read_poll_timeout` to sleep-poll the hardware status register.
 
-It follows the same structure, naming conventions, and order as the example in the [Memory-Mapped I/O](mmio.md) slide.
 
 ```rust
 // SPDX-License-Identifier: GPL-2.0
