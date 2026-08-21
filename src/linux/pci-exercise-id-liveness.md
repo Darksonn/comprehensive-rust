@@ -28,9 +28,10 @@ The QEMU `edu` device has the following register specifications for this exercis
 
 ## Starter Code
 
-You can use the starter code in `samples/rust/rust_driver_pci_edu_drm.rs` in your kernel tree.
+Instead of using a template with placeholder stubs, you can **copy the full example from the previous page ([Memory-Mapped I/O](mmio.md))** and use it as your starting point. 
 
-For this first part, you can ignore or comment out the interrupt-related code (such as the `_irq` field in `EduRegistrationData` and the IRQ allocation/request TODOs in `probe`) to focus solely on MMIO and these two IOCTLs.
+Overwrite the contents of `samples/rust/rust_driver_pci_edu_drm.rs` in your kernel tree with that example, and then modify it to fit the `edu` device.
+
 
 ### Tasks
 
