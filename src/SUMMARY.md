@@ -427,7 +427,8 @@ SPDX-License-Identifier: CC-BY-4.0
   - [Static Inline Functions](linux/static-inline.md)
   - [Case Study: Credentials](linux/c-abstractions-cred.md)
 - [The PCI Subsystem](linux/pci.md)
-  - [Exposing Class Devices](linux/pci-class.md)
+  - [Exposing via miscdevice](linux/pci-miscdevice.md)
+  - [Exposing via DRM](linux/pci-drm.md)
 - [Memory-Mapped I/O](linux/mmio.md)
 
 # Rust for Linux: Day 2 Afternoon
