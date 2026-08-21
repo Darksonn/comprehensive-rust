@@ -431,11 +431,11 @@ SPDX-License-Identifier: CC-BY-4.0
 - [The DRM Subsystem](linux/drm.md)
   - [Exposing via the DRM Subsystem](linux/pci-drm.md)
   - [Defining DRM IOCTLs](linux/drm-ioctl.md)
-- [Memory-Mapped I/O](linux/mmio.md)
 
 # Rust for Linux: Day 2 Afternoon
 
 - [Welcome](linux/welcome-day-2-afternoon.md)
+- [Memory-Mapped I/O](linux/mmio.md)
 - [Interrupts](linux/interrupts.md)
 - [Exercise: QEMU EDU PCI Driver](linux/pci-exercise.md)
 - [Solution: QEMU EDU PCI Driver](linux/pci-solution.md)
