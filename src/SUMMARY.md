@@ -428,7 +428,7 @@ SPDX-License-Identifier: CC-BY-4.0
   - [Case Study: Credentials](linux/c-abstractions-cred.md)
 - [The PCI Subsystem](linux/pci.md)
   - [Exposing via miscdevice](linux/pci-miscdevice.md)
-  - [Exposing via DRM](linux/pci-drm.md)
+  - [Exposing via the DRM Subsystem](linux/pci-drm.md)
 - [Memory-Mapped I/O](linux/mmio.md)
 
 # Rust for Linux: Day 2 Afternoon
