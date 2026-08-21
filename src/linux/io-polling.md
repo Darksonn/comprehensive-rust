@@ -17,8 +17,6 @@ There are two primary ways to do this:
 
 In a process context (such as handling an IOCTL), we can sleep between poll attempts to avoid busy-waiting and yielding CPU cycles to other tasks.
 
----
-
 ## The `read_poll_timeout` Function
 
 The Rust kernel abstractions provide **`kernel::io::poll::read_poll_timeout`** to safely implement sleeping poll loops.
@@ -43,28 +41,28 @@ where
 *   **`sleep_delta`**: The duration to sleep (`Delta`) between poll attempts. If `0`, it does not sleep (but still relaxes the CPU).
 *   **`timeout_delta`**: The maximum duration to poll before returning an error.
 
----
-
 ## Example Usage
 
-For the QEMU `edu` device, we can poll the `STATUS` register to wait until the factorial computation is finished (i.e. the `computing` bit becomes `0`):
-
 ```rust,ignore
-use kernel::io::poll;
-use kernel::time;
+use kernel::io::{
+    Io,
+    Mmio,
+    poll::read_poll_timeout,
+};
+use kernel::time::Delta;
 
-fn wait_for_factorial(bar: &pci::Bar<'_, { regs::END }>) -> Result {
-    poll::read_poll_timeout(
-        // 1. Read the STATUS register:
-        || Ok(bar.read(regs::STATUS)),
-        // 2. Wait until the 'computing' bit is 0 (idle):
-        |status: &regs::STATUS| status.computing().get() == 0,
-        // 3. Sleep 1 millisecond between polls:
-        time::Delta::from_millis(1),
-        // 4. Time out after 100 milliseconds:
-        time::Delta::from_millis(100),
+const HW_READY: u16 = 0x01;
+
+fn wait_for_hardware<const SIZE: usize>(io: &Mmio<SIZE>) -> Result {
+    read_poll_timeout(
+        // The `op` closure reads the value of a specific status register.
+        || io.try_read16(0x1000),
+        // The `cond` closure takes a reference to the value returned by `op`
+        // and checks whether the hardware is ready.
+        |val: &u16| *val == HW_READY,
+        Delta::from_millis(50),
+        Delta::from_secs(3),
     )?;
-
     Ok(())
 }
 ```
@@ -73,8 +71,6 @@ fn wait_for_factorial(bar: &pci::Bar<'_, { regs::END }>) -> Result {
 
 *   If `op` returns an error (e.g., bus error), `read_poll_timeout` aborts and returns that error immediately.
 *   If `timeout_delta` is exceeded before `cond` becomes `true`, it returns `Err(ETIMEDOUT)`.
-
----
 
 ## Atomic Polling
 

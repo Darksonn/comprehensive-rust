@@ -439,9 +439,11 @@ SPDX-License-Identifier: CC-BY-4.0
   - [Exercise: Device ID and Liveness](linux/pci-exercise-id-liveness.md)
   - [Solution: Device ID and Liveness](linux/pci-solution-id-liveness.md)
 - [IO Polling](linux/io-polling.md)
+  - [Exercise: Factorial](linux/pci-exercise-factorial.md)
+  - [Solution: Factorial](linux/pci-solution-factorial.md)
 - [Interrupts](linux/interrupts.md)
-- [Exercise: Factorial and Interrupts](linux/pci-exercise.md)
-- [Solution: QEMU EDU PCI DRM Driver](linux/pci-solution.md)
+  - [Exercise: Interrupts](linux/pci-exercise.md)
+  - [Solution: QEMU EDU PCI DRM Driver](linux/pci-solution.md)
 
 ---
 
