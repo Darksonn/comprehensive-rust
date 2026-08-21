@@ -31,6 +31,7 @@ The QEMU `edu` device has the following register specifications for this exercis
     *   Use `read_poll_timeout` to poll the `STATUS` register until the `computing` bit becomes `0` (idle).
     *   Read the result from the `FACTORIAL` register and write it to `arg.res`.
 3.  **Register the IOCTL:** Add the `EDU_COMPUTE_FACTORIAL` IOCTL to `declare_drm_ioctls!` and map it to your callback.
+4.  **Synchronize Access (Stretch Goal):** If multiple users attempt to compute factorials simultaneously, they will interfere with each other's register writes. Synchronize access to the factorial registers (e.g., wrapping the `Bar` in a `Mutex` using `new_mutex!`) to prevent this.
 
 ---
 
