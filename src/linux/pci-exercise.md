@@ -20,6 +20,7 @@ To run the VM with the virtual PCI card inserted, append the `-device edu` optio
 ```bash
 cd ~/learn-rust
 qemu-system-x86_64 \
+    -enable-kvm \
     -machine q35,acpi=on \
     -kernel linux/arch/x86/boot/bzImage \
     -drive file=debian.img,format=raw,if=virtio \
