@@ -29,7 +29,7 @@ tar xvf llvm-22.1.6-rust-1.97.0-x86_64.tar.xz
 llvm_prefix=$(realpath llvm-22.1.6-rust-1.97.0-x86_64)
 export PATH=$llvm_prefix/bin:$PATH
 export LIBCLANG_PATH=$llvm_prefix/lib/libclang.so
-cargo install --force --locked --root $llvm_prefix bindgen-cli
+cargo install --force --locked --root $llvm_prefix bindgen-cli --version 0.72.1
 ```
 
 > [!NOTE]
@@ -69,7 +69,7 @@ mount -o loop "$IMG" "$DIR"
 
 echo "Installing minimal Debian ($DISTRO) with debootstrap..."
 debootstrap --arch=amd64 \
-    --include=build-essential,kmod,udev,procps,strace,gdb,vim,nano,pciutils \
+    --include=build-essential,kmod,udev,procps,strace,gdb,libboost-regex1.74.0,vim,nano,pciutils \
     "$DISTRO" "$DIR" http://deb.debian.org/debian/
 
 echo "Configuring hostname, fstab, and serial console autologin..."
@@ -165,6 +165,7 @@ Return to your parent workspace directory (`~/learn-rust`) and boot QEMU with `-
 ```bash
 cd ~/learn-rust
 qemu-system-x86_64 \
+    -enable-kvm \
     -machine q35,acpi=on \
     -kernel linux/arch/x86/boot/bzImage \
     -drive file=debian.img,format=raw,if=virtio \
