@@ -449,6 +449,55 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ---
 
+# Rust for Linux (LPC): Morning
+
+- [Welcome](lpc/welcome.md)
+- [Why Rust?](lpc/why-rust.md)
+  - [Unsafe Rust and Encapsulation](lpc/overview.md)
+  - [Unsafe Rust in Real-World Drivers](lpc/unsafe-in-drivers.md)
+- [Building Rust Code](lpc/build-system.md)
+  - [Other Build Options](lpc/build-opts.md)
+- [Failure in Rust](lpc/error-handling.md)
+- [Mutexes & Synchronization](lpc/mutex.md)
+  - [Mutex Guards](lpc/mutex-guard.md)
+  - [Releasing Guards Early](lpc/mutex-guard-drop.md)
+  - [Mutexes vs. Spinlocks](lpc/mutex-spinlock.md)
+- [Allocations](lpc/allocations.md)
+  - [Allocation Failure](lpc/alloc-failure.md)
+  - [Allocator Flags](lpc/alloc-flags.md)
+- [Generating Bindings with bindgen](lpc/bindgen.md)
+  - [Static Inline Functions](lpc/static-inline.md)
+  - [Case Study: Credentials](lpc/c-abstractions-cred.md)
+  - [Using Credentials in File::cred](lpc/c-abstractions.md)
+- [Case Study: A Bug in kernel::mm](lpc/mm-vma-cve.md)
+  - [CVE-2026-43434](lpc/mm-vma-cve-details.md)
+  - [What Went Wrong in rust/kernel/mm/virt.rs?](lpc/mm-vma-problem.md)
+  - [Live Coding: Introducing DriverVma](lpc/mm-vma-fix.md)
+
+# Rust for Linux (LPC): Afternoon
+
+- [Welcome](lpc/welcome-afternoon.md)
+- [The Driver Model](lpc/driver-model.md)
+  - [Driver Lifecycle](lpc/driver-lifecycle.md)
+- [The PCI Subsystem](lpc/pci.md)
+- [The DRM Subsystem](lpc/drm.md)
+  - [Exposing via the DRM Subsystem](lpc/pci-drm.md)
+  - [Defining DRM IOCTLs](lpc/drm-ioctl.md)
+  - [Exercise: Minimal DRM Driver](lpc/pci-exercise-drm.md)
+  - [Solution: Minimal DRM Driver](lpc/pci-solution-drm.md)
+- [Memory-Mapped I/O](lpc/mmio.md)
+  - [Expanding the `register!` Macro](lpc/mmio-register-macro.md)
+  - [Exercise: Device ID and Liveness](lpc/pci-exercise-id-liveness.md)
+  - [Solution: Device ID and Liveness](lpc/pci-solution-id-liveness.md)
+- [IO Polling](lpc/io-polling.md)
+  - [Exercise: Factorial](lpc/pci-exercise-factorial.md)
+  - [Solution: Factorial](lpc/pci-solution-factorial.md)
+- [Interrupts](lpc/interrupts.md)
+  - [Exercise: Interrupts](lpc/pci-exercise.md)
+  - [Solution: Interrupts](lpc/pci-solution.md)
+
+---
+
 # Concurrency: Morning
 
 - [Welcome](concurrency/welcome.md)
