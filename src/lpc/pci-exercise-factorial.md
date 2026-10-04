@@ -32,6 +32,7 @@ The QEMU `edu` device has the following register specifications for this exercis
     *   Read the result from the `FACTORIAL` register and write it to `arg.res`.
 3.  **Register the IOCTL:** Add the `EDU_COMPUTE_FACTORIAL` IOCTL to `declare_drm_ioctls!` and map it to your callback.
 4.  **Synchronize Access (Stretch Goal):** If multiple users attempt to compute factorials simultaneously, they will interfere with each other's register writes. Synchronize access to the factorial registers with a Mutex to prevent this.
+    *   *Hint:* Import `kernel::sync::{new_mutex, Mutex}`, add `#[pin] fact_lock: Mutex<()>` to `EduDrmData`, and initialize it in `probe` with `fact_lock <- new_mutex!(())`.
 
 ---
 

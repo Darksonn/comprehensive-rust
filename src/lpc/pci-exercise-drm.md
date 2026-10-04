@@ -20,7 +20,31 @@ In this exercise, you will inspect the starter PCI DRM driver for the QEMU `edu`
    - Declare `EDU_GET_ID` in `kernel::declare_drm_ioctls!`.
    - Implement `EduFile::get_id` so that it sets `arg.id = 0x12345678` and returns `Ok(0)`.
 3. **Compile and Probe in QEMU:**
-   - Build the module (`make LLVM=1`), boot QEMU with `-device edu`, load `samples/rust/rust_driver_pci_edu_drm.ko` with `insmod`, and verify `/dev/dri/card0` and `/dev/dri/renderD128` appear.
+   - Build just the exercise module on the host:
+     ```bash
+     make LLVM=1 samples/rust/rust_driver_pci_edu_drm.ko
+     ```
+   - Boot QEMU with `-device edu` (if not already running; see [Setup](setup.md)):
+     ```bash
+     cd ~/learn-rust
+     qemu-system-x86_64 \
+         -enable-kvm \
+         -machine q35,acpi=on \
+         -kernel linux/arch/x86/boot/bzImage \
+         -drive file=debian.img,format=raw,if=virtio \
+         -append "root=/dev/vda console=ttyS0 acpi=force net.ifnames=0" \
+         -nographic \
+         -no-reboot \
+         -m 2G -smp 2 \
+         -virtfs local,path=$PWD,mount_tag=hostshare,security_model=none,id=hostshare \
+         -device edu
+     ```
+   - Inside the VM, load `samples/rust/rust_driver_pci_edu_drm.ko` and verify `/dev/dri/card0` and `/dev/dri/renderD128` appear:
+     ```bash
+     insmod /mnt/linux/samples/rust/rust_driver_pci_edu_drm.ko
+     ls -l /dev/dri/
+     ```
+   - *Tip:* For subsequent exercises, you can keep QEMU running, re-run `make LLVM=1 samples/rust/rust_driver_pci_edu_drm.ko` on the host, and reload the module in the VM with `rmmod rust_driver_pci_edu_drm && insmod /mnt/linux/samples/rust/rust_driver_pci_edu_drm.ko`.
 4. **Test with Userspace `test_ioctl.c`:**
 
 ```c
