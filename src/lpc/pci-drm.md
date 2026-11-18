@@ -15,6 +15,7 @@ struct EduDriver;
 #[pin_data(PinnedDrop)]
 struct EduPciData<'bound> {
     pdev: ARef<pci::Device>,
+    #[pin]
     _reg: drm::Registration<'bound, EduDriver>,
 }
 

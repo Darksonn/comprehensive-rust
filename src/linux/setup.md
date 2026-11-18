@@ -32,8 +32,7 @@ export LIBCLANG_PATH=$llvm_prefix/lib/libclang.so
 cargo install --force --locked --root $llvm_prefix bindgen-cli --version 0.72.1
 ```
 
-> [!NOTE]
-> Ensure these environment variable exports are added to your `~/.bashrc` or shell profile so they persist across new terminal sessions when compiling or running QEMU later.
+> **Note:** Ensure these environment variable exports are added to your `~/.bashrc` or shell profile so they persist across new terminal sessions when compiling or running QEMU later.
 
 ## 2. Workspace Setup & Minimal Debian VM Image
 
@@ -46,6 +45,9 @@ mkdir -p ~/learn-rust && cd ~/learn-rust
 
 # Clone the development kernel branch for the course:
 git clone --branch rfl-course-edu https://github.com/Darksonn/linux.git
+
+# If you already cloned the repository earlier, update to the latest rebased branch:
+cd ~/learn-rust/linux && git fetch origin && git reset --hard origin/rfl-course-edu
 ```
 
 To build a reusable Debian Bookworm disk image with `build-essential` (`gcc`, `make`) pre-installed and automatic 9p workspace mounting, save the following script as `create-image.sh` in your workspace directory (`~/learn-rust`) and run it:
@@ -112,7 +114,7 @@ sudo ./create-image.sh
 
 ## 3. Configuring & Building the Kernel
 
-Navigate into your `linux/` directory, verify toolchain support, and configure your kernel source tree with QEMU guest support (`kvm_guest.config`), Rust, sample modules, 9p filesystem sharing, and ACPI poweroff support:
+Navigate into your `linux/` directory, verify toolchain support, and configure your kernel source tree with QEMU guest support (`kvm_guest.config`), Rust, DRM, sample modules, 9p filesystem sharing, and ACPI poweroff support:
 
 <!-- mdbook-xgettext: skip -->
 
@@ -126,11 +128,14 @@ make LLVM=1 rustavailable
 make LLVM=1 x86_64_defconfig
 make LLVM=1 kvm_guest.config
 
-# Enable Rust for Linux and the sample miscdevice driver:
+# Enable Rust for Linux, DRM, and the course sample drivers:
 ./scripts/config --enable CONFIG_RUST
+./scripts/config --enable CONFIG_DRM
 ./scripts/config --enable CONFIG_SAMPLES
 ./scripts/config --enable CONFIG_SAMPLES_RUST
 ./scripts/config --module SAMPLE_RUST_MINIMAL
+./scripts/config --module SAMPLE_RUST_MISC_DEVICE
+./scripts/config --module SAMPLE_RUST_DRIVER_PCI_EDU_DRM
 
 # Enable 9p filesystem support (required for sharing hostshare via /mnt):
 ./scripts/config --enable CONFIG_NET_9P
@@ -158,7 +163,7 @@ make LLVM=1 -j$(nproc)
 
 ## 4. Booting QEMU with Workspace Sharing
 
-Return to your parent workspace directory (`~/learn-rust`) and boot QEMU with `-machine q35,acpi=on`, `-no-reboot`, and `acpi=force` so that ACPI power management and host directory sharing work cleanly:
+Return to your parent workspace directory (`~/learn-rust`) and boot QEMU with `-machine q35,acpi=on`, `-device edu`, `-no-reboot`, and `acpi=force`:
 
 <!-- mdbook-xgettext: skip -->
 
@@ -173,7 +178,8 @@ qemu-system-x86_64 \
     -nographic \
     -no-reboot \
     -m 2G -smp 2 \
-    -virtfs local,path=$PWD,mount_tag=hostshare,security_model=none,id=hostshare
+    -virtfs local,path=$PWD,mount_tag=hostshare,security_model=none,id=hostshare \
+    -device edu
 ```
 
 ## 5. Testing Inside the Virtual Machine
@@ -189,7 +195,7 @@ cd /mnt/linux
 # Verify custom kernel version:
 uname -r
 
-# Load the sample miscdevice driver and test reading from it:
+# Load the sample minimal driver and unload it:
 insmod samples/rust/rust_minimal.ko
 rmmod rust_minimal
 
@@ -201,6 +207,6 @@ poweroff
 
 - **Workspace Layout:** Keeping `debian.img`, `create-image.sh`, and C test programs in the parent directory (`~/learn-rust`) ensures that `git status` inside `linux/` remains clean.
 - **Why `q35,acpi=on` and `acpi=force`?** Passing these ACPI flags to QEMU and the kernel boot command line ensures that `poweroff` triggers ACPI sleep state S5 (`reboot: Power down`), cleanly exiting QEMU without hanging.
-- **Automatic `/mnt` Mounting:** Because `/etc/fstab` maps `hostshare` to `/mnt`, both `/mnt/linux` and `/mnt/test_miscdev.c` are immediately accessible upon login.
+- **Automatic `/mnt` Mounting:** Because `/etc/fstab` maps `hostshare` to `/mnt`, both `/mnt/linux` and userspace test binaries in `/mnt/` are immediately accessible upon login.
 
 </details>

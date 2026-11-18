@@ -1,5 +1,5 @@
 ---
-minutes: 20
+minutes: 10
 ---
 
 <!--
@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Solution: Interrupts
 
-You can find the solution code below. This code builds on top of the **Factorial** solution, adding MSI interrupt handling (allocating vectors, requesting IRQ, and implementing the interrupt handler) and the `test_irq` IOCTL.
+You can find the full solution code below. This code can also be found in `samples/rust/rust_driver_pci_edu.rs`.
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
@@ -32,28 +32,18 @@ mod regs {
     use super::*;
 
     register! {
-        pub(super) ID(u32) @ 0x00 {
-            31:0 id;
-        }
-        pub(super) LIVENESS(u32) @ 0x04 {
-            31:0 val;
-        }
-        pub(super) FACTORIAL(u32) @ 0x08 {
-            31:0 val;
-        }
+        base: kernel::io::Region<END>;
+
+        pub(super) ID: u32 @ 0x00;
+        pub(super) LIVENESS: u32 @ 0x04;
+        pub(super) FACTORIAL: u32 @ 0x08;
         pub(super) STATUS(u32) @ 0x20 {
             0:0 computing;
             7:7 irq;
         }
-        pub(super) IRQ_STATUS(u32) @ 0x24 {
-            31:0 val;
-        }
-        pub(super) IRQ_RAISE(u32) @ 0x60 {
-            31:0 val;
-        }
-        pub(super) IRQ_ACKNOWLEDGE(u32) @ 0x64 {
-            31:0 val;
-        }
+        pub(super) IRQ_STATUS: u32 @ 0x24;
+        pub(super) IRQ_RAISE: u32 @ 0x60;
+        pub(super) IRQ_ACKNOWLEDGE: u32 @ 0x64;
     }
 
     pub(super) const END: usize = 0x80;
@@ -64,6 +54,7 @@ struct EduDriver;
 #[pin_data(PinnedDrop)]
 struct EduPciData<'bound> {
     pdev: ARef<pci::Device>,
+    #[pin]
     _reg: drm::Registration<'bound, EduDriver>,
 }
 
@@ -88,13 +79,17 @@ struct EduObject {}
 
 impl irq::Handler for EduIrqHandler<'_, '_> {
     fn handle(&self) -> irq::IrqReturn {
-        let status = self.bar.read(regs::IRQ_STATUS).val().get();
+        let status = self.bar.read(regs::IRQ_STATUS);
         if status == 0 {
             return irq::IrqReturn::None;
         }
 
-        dev_info!(self.pdev, "QEMU EDU DRM IRQ handled! status=0x{:x}\n", status);
-        self.bar.write(regs::IRQ_ACKNOWLEDGE, status.into());
+        dev_info!(
+            self.pdev,
+            "QEMU EDU DRM IRQ handled! status=0x{:x}\n",
+            status
+        );
+        self.bar.write(regs::IRQ_ACKNOWLEDGE, status);
 
         irq::IrqReturn::Handled
     }
@@ -115,7 +110,7 @@ impl EduFile {
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        arg.id = reg_data.bar.read(regs::ID).id().get();
+        arg.id = reg_data.bar.read(regs::ID);
         Ok(0)
     }
 
@@ -125,8 +120,8 @@ impl EduFile {
         arg: &mut uapi::drm_edu_test_liveness,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        reg_data.bar.write(regs::LIVENESS, arg.val.into());
-        arg.inv = reg_data.bar.read(regs::LIVENESS).val().get();
+        reg_data.bar.write(regs::LIVENESS, arg.val);
+        arg.inv = reg_data.bar.read(regs::LIVENESS);
         Ok(0)
     }
 
@@ -137,7 +132,7 @@ impl EduFile {
         _file: &drm::File<Self>,
     ) -> Result<u32> {
         let bar = &reg_data.bar;
-        bar.write(regs::FACTORIAL, arg.val.into());
+        bar.write(regs::FACTORIAL, arg.val);
 
         poll::read_poll_timeout(
             || Ok(bar.read(regs::STATUS)),
@@ -146,7 +141,7 @@ impl EduFile {
             time::Delta::from_millis(100),
         )?;
 
-        arg.res = bar.read(regs::FACTORIAL).val().get();
+        arg.res = bar.read(regs::FACTORIAL);
         Ok(0)
     }
 
@@ -156,7 +151,7 @@ impl EduFile {
         arg: &mut uapi::drm_edu_test_irq,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        reg_data.bar.write(regs::IRQ_RAISE, arg.val.into());
+        reg_data.bar.write(regs::IRQ_RAISE, arg.val);
         Ok(0)
     }
 }
@@ -244,13 +239,11 @@ impl pci::Driver for EduDriver {
 
             // SAFETY: `_reg` is stored in `EduPciData` and dropped when the PCI driver is
             // unbound; it is never forgotten.
-            let _reg = unsafe {
-                drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data, 0)?
-            };
+            let _reg = unsafe { drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data) };
 
             Ok(try_pin_init!(EduPciData {
                 pdev: pdev.into(),
-                _reg,
+                _reg <- _reg,
             }))
         })
     }
@@ -277,10 +270,3 @@ kernel::module_pci_driver! {
     license: "GPL v2",
 }
 ```
-
-<details>
-
-- **SRCU Lifetime Guarantees:** Emphasize that the registration data is accessed via `guard.registration_data_with`, which wraps a DRM SRCU read lock. This protects against physical device hot-unplug while userspace is in the middle of executing a syscall.
-- **Poll Timeout:** Note how `poll::read_poll_timeout` is used instead of active spinning. Since DRM runs in a process context (ioctl syscall), it can sleep to yield CPU cycles to other threads while waiting for the hardware to finish the calculation.
-
-</details>

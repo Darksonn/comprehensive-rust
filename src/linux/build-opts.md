@@ -1,5 +1,5 @@
 ---
-minutes: 10
+minutes: 5
 ---
 
 <!--
@@ -7,55 +7,31 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Other build options
+# Other Build Options
 
-There are a few different useful options to build with:
-
-## Enable extra lints
-
-Rust has a linter called clippy that enables extra lints. Build the kernel with the linter enabled:
 ```sh
+# Enable extra Clippy lints:
 make LLVM=1 CLIPPY=1
-```
 
-## Code formatting
-
-Rust code is automatically formatted using a tool called `rustfmt`.
-```sh
+# Check or apply standard Rust formatting:
 make LLVM=1 rustfmtcheck
-```
-To automatically update the files on disk:
-```sh
 make LLVM=1 rustfmt
-```
-You can also invoke `rustfmt drivers/alice/rust_alice.rs` directly.
 
-## Documentation
-
-Documentation can be built from the Rust source files.
-```sh
+# Generate HTML documentation for the kernel crate:
 make LLVM=1 rustdoc
-```
-and open `Documentation/output/rust/rustdoc/kernel/index.html`
 
-Can be viewed online at [rust.docs.kernel.org](https://rust.docs.kernel.org/)
-
-## IDE support
-
-A configuration file for Rust support in IDEs can be generated using
-```
+# Generate rust-analyzer configuration for IDE support:
 make LLVM=1 rust-analyzer
 ```
-This should be regenerated after changing the configuration file or adding new
-Kconfig options.
 
-## Testing
+- Online kernel Rust docs: [rust.docs.kernel.org](https://rust.docs.kernel.org/)
 
-Rust tests fall into two categories:
+<details>
 
-* Documentation examples
-* Stand-alone kunit tests
+- **`CLIPPY=1`:** Runs the Clippy linter during kernel compilation to catch unidiomatic patterns or potential bugs.
+- **`rustfmt`:** Kernel Rust code follows automated formatting enforced by `rustfmt` (you can also run `rustfmt path/to/file.rs` directly).
+- **`rustdoc`:** Builds local HTML documentation into `Documentation/output/rust/rustdoc/kernel/index.html` (also hosted at `rust.docs.kernel.org`).
+- **`rust-analyzer`:** Generates `rust-project.json` for IDE go-to-definition, inline type hints, and diagnostics. Re-run after adding new files or changing `.config`.
+- **Testing:** Mention that `rustdoc` examples in `rust/kernel/` are compiled and executed as KUnit tests when `CONFIG_RUST_KERNEL_DOCTESTS=y` is enabled.
 
-To run the documentation examples as tests, enable
-`CONFIG_RUST_KERNEL_DOCTESTS` and boot with QEMU. Standalone tests will be
-covered later.
+</details>

@@ -1,5 +1,5 @@
 ---
-minutes: 10
+minutes: 5
 ---
 
 <!--
@@ -9,36 +9,25 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Mutexes vs. Spinlocks
 
-The Linux kernel provides both sleeping locks (**`Mutex<T>`**) and non-sleeping locks (**`SpinLock<T>`**). Choosing between them depends on the execution context:
-
 ```rust,ignore
 use kernel::sync::{Mutex, SpinLock};
 
-// Sleeping lock: for process context
-let mutex_state = Mutex::new(MyData::new());
+// Sleeping lock (process context):
+let mutex_state = new_mutex!(MyData::new());
 
-// Spinning lock: for atomic/interrupt contexts
-let spinlock_state = SpinLock::new(MyData::new());
+// Spinning lock (atomic / interrupt context):
+let spinlock_state = new_spinlock!(MyData::new());
 ```
-
-## Key Differences
 
 | Feature | `Mutex<T>` | `SpinLock<T>` |
 | :--- | :--- | :--- |
-| **Contention Behavior** | Puts thread to **sleep** until available | **Spins** (busy-waits) on the CPU |
-| **Valid Contexts** | Process context only | Process, atomic, and interrupt contexts |
-| **Operations Allowed Inside** | Can sleep (e.g., `GFP_KERNEL`, I/O) | **Cannot sleep** (no `GFP_KERNEL`, no blocking) |
-| **Typical Hold Time** | Long (disk/network I/O, large copies) | Very short (updating small state/counters) |
-
-## The Golden Rule
-
-> [!WARNING]
-> **Never sleep while holding a `SpinLock`!**
-> Attempting to sleep or allocate with `GFP_KERNEL` while holding a `SpinLock` will trigger kernel lockdep warnings or system lockups. Use `GFP_ATOMIC` if allocation is required while holding a spinlock.
+| **Contention** | Sleeps | Spins on CPU |
+| **Valid Contexts** | Process context only | Process, atomic, and IRQ contexts |
+| **While Held** | May sleep (`GFP_KERNEL`, I/O) | **Never sleep** (`GFP_ATOMIC` only) |
 
 <details>
 
-- Discuss why spinlocks disable preemption (and sometimes interrupts) on the local CPU core.
-- Compare with user-space mutexes (which often spin briefly before sleeping via futex).
+- Both `Mutex<T>` and `SpinLock<T>` use the exact same container pattern: data lives inside the lock and is accessed through a guard.
+- **The Golden Rule:** Never sleep while holding a `SpinLock`! Allocating with `GFP_KERNEL` or waiting on I/O while holding a `SpinLock` triggers lockdep warnings or deadlocks.
 
 </details>

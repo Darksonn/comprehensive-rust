@@ -25,7 +25,7 @@ The QEMU `edu` device has the following register specifications for this exercis
 
 ## Tasks
 
-1.  **Define Registers:** Add `FACTORIAL` and `STATUS` (with the `computing` bit at bit 0) to your `register!` macro.
+1.  **Define Registers:** Add `FACTORIAL: u32 @ 0x08;` (plain typed register) and `STATUS(u32) @ 0x20` (bitfield register with `0:0 computing;`) to your `register!` macro.
 2.  **Implement `compute_factorial` IOCTL:**
     *   Write `arg.val` to the `FACTORIAL` register.
     *   Use `read_poll_timeout` to poll the `STATUS` register until the `computing` bit becomes `0` (idle).

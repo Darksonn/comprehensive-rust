@@ -426,6 +426,7 @@ SPDX-License-Identifier: CC-BY-4.0
   - [Generating Bindings with bindgen](linux/bindgen.md)
   - [Static Inline Functions](linux/static-inline.md)
   - [Case Study: Credentials](linux/c-abstractions-cred.md)
+  - [Using Credentials in File::cred](linux/c-abstractions-file-cred.md)
 - [The PCI Subsystem](linux/pci.md)
   - [Exposing via miscdevice](linux/pci-miscdevice.md)
 - [The DRM Subsystem](linux/drm.md)
@@ -438,6 +439,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - [Welcome](linux/welcome-day-2-afternoon.md)
 - [Memory-Mapped I/O](linux/mmio.md)
+  - [Expanding the `register!` Macro](linux/mmio-register-macro.md)
   - [Exercise: Device ID and Liveness](linux/pci-exercise-id-liveness.md)
   - [Solution: Device ID and Liveness](linux/pci-solution-id-liveness.md)
 - [IO Polling](linux/io-polling.md)

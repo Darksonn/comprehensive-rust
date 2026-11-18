@@ -9,24 +9,20 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # The PCI Subsystem
 
-To write a PCI driver in Rust, we implement the **`pci::Driver`** trait and declare the hardware devices our module supports.
-
 ```rust,ignore
 use kernel::{device::Core, pci, prelude::*};
 
 struct TestPciDriver;
 
-struct TestPciData {
-}
+#[pin_data]
+struct TestPciData {}
 
-// 1. Declare the PCI Device ID table:
 kernel::pci_device_table!(
     PCI_TABLE,
     <TestPciDriver as pci::Driver>::IdInfo,
     [(pci::DeviceId::from_id(pci::Vendor::REDHAT, 0x5), ())]
 );
 
-// 2. Implement the pci::Driver trait:
 impl pci::Driver for TestPciDriver {
     type IdInfo = ();
     type Data<'bound> = TestPciData;
@@ -42,7 +38,6 @@ impl pci::Driver for TestPciDriver {
     }
 }
 
-// 3. Register the module:
 kernel::module_pci_driver! {
     type: TestPciDriver,
     name: "rust_driver_pci",
@@ -52,26 +47,11 @@ kernel::module_pci_driver! {
 }
 ```
 
-## How Probing Works
-
-- **Match:** When a PCI device with vendor `0x1b36` (Red Hat) and device ID `0x0005` (the `pci-testdev` device) is detected, the kernel calls `probe()`.
-- **`pdev`:** Represents the bound PCI device, providing access to PCI config space, BARs, and IRQ allocation.
-- **Resource Management:** `probe()` returns the driver's private state (`TestPciData`). When the device is unbound (e.g. on driver unload), this struct is dropped.
-
-> **Note:** The QEMU `edu` device (used in the exercise) has vendor ID `0x1234` (QEMU) and device ID `0x11e8`.
-
----
-
-## Running in QEMU
-
-To test your drivers, you must boot the VM with the corresponding virtual PCI device virtualized by QEMU:
-
-*   **For `pci-testdev`:** Append `-device pci-testdev` to the QEMU command line.
-*   **For `edu`:** Append `-device edu` to the QEMU command line.
-
 <details>
 
-- Mention that `module_pci_driver!` expands to the C-side boilerplate `module_init` and `module_exit` hooks registering with the PCI core.
-- Highlight that `probe()` returns a `PinInit` to initialize the driver data directly in-place, which is useful for pinning embedded locks or miscdevice registrations.
+- **Matching hardware (`pci_device_table!`):** When a PCI device matching Vendor `0x1b36` (Red Hat) and Device ID `0x0005` (`pci-testdev`) is discovered, the kernel calls `probe()`. (For the QEMU `edu` device in our exercise, the ID is `pci::Vendor::QEMU`, `0x11e8`.)
+- **`probe()` returns `impl PinInit<Self::Data<'bound>, Error>`:** Initializes the driver's private state in-place, parameterized by `'bound` (the lifetime for which the driver is bound to the PCI device). When the device is unbound, `TestPciData` is dropped.
+- **`module_pci_driver!`:** Generates the `module_init` / `module_exit` boilerplate registering `TestPciDriver` with the PCI core.
+- **QEMU flags:** `-device pci-testdev` or `-device edu`.
 
 </details>

@@ -30,8 +30,8 @@ extern "C" {
 
 <details>
 
-- Show `rust/bindings/bindings_helper.h`.
-- Show `rust/bindings/lib.rs`.
-- Show `rust/Makefile`.
+- Show [`rust/bindings/bindings_helper.h`](https://github.com/Darksonn/linux/blob/rfl-course-edu/rust/bindings/bindings_helper.h).
+- Show [`rust/bindings/lib.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/rust/bindings/lib.rs).
+- Show [`rust/Makefile`](https://github.com/Darksonn/linux/blob/rfl-course-edu/rust/Makefile).
 
 </details>

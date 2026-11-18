@@ -11,7 +11,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 You can find the solution code below. This code builds on top of the **Device ID and Liveness** solution, adding register definitions and the `compute_factorial` callback using `read_poll_timeout` to sleep-poll the hardware status register.
 
-
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
 #![allow(unused_variables, unused_imports, dead_code)]
@@ -33,15 +32,11 @@ mod regs {
     use super::*;
 
     register! {
-        pub(super) ID(u32) @ 0x00 {
-            31:0 id;
-        }
-        pub(super) LIVENESS(u32) @ 0x04 {
-            31:0 val;
-        }
-        pub(super) FACTORIAL(u32) @ 0x08 {
-            31:0 val;
-        }
+        base: kernel::io::Region<END>;
+
+        pub(super) ID: u32 @ 0x00;
+        pub(super) LIVENESS: u32 @ 0x04;
+        pub(super) FACTORIAL: u32 @ 0x08;
         pub(super) STATUS(u32) @ 0x20 {
             0:0 computing;
         }
@@ -55,6 +50,7 @@ struct EduDriver;
 #[pin_data(PinnedDrop)]
 struct EduPciData<'bound> {
     pdev: ARef<pci::Device>,
+    #[pin]
     _reg: drm::Registration<'bound, EduDriver>,
 }
 
@@ -83,7 +79,7 @@ impl EduFile {
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        arg.id = reg_data.bar.read(regs::ID).id().get();
+        arg.id = reg_data.bar.read(regs::ID);
         Ok(0)
     }
 
@@ -93,8 +89,8 @@ impl EduFile {
         arg: &mut uapi::drm_edu_test_liveness,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        reg_data.bar.write(regs::LIVENESS, arg.val.into());
-        arg.inv = reg_data.bar.read(regs::LIVENESS).val().get();
+        reg_data.bar.write(regs::LIVENESS, arg.val);
+        arg.inv = reg_data.bar.read(regs::LIVENESS);
         Ok(0)
     }
 
@@ -105,7 +101,7 @@ impl EduFile {
         _file: &drm::File<Self>,
     ) -> Result<u32> {
         let bar = &reg_data.bar;
-        bar.write(regs::FACTORIAL, arg.val.into());
+        bar.write(regs::FACTORIAL, arg.val);
 
         poll::read_poll_timeout(
             || Ok(bar.read(regs::STATUS)),
@@ -114,7 +110,7 @@ impl EduFile {
             time::Delta::from_millis(100),
         )?;
 
-        arg.res = bar.read(regs::FACTORIAL).val().get();
+        arg.res = bar.read(regs::FACTORIAL);
         Ok(0)
     }
 }
@@ -184,13 +180,11 @@ impl pci::Driver for EduDriver {
 
             // SAFETY: `_reg` is stored in `EduPciData` and dropped when the PCI driver is
             // unbound; it is never forgotten.
-            let _reg = unsafe {
-                drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data, 0)?
-            };
+            let _reg = unsafe { drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data) };
 
             Ok(try_pin_init!(EduPciData {
                 pdev: pdev.into(),
-                _reg,
+                _reg <- _reg,
             }))
         })
     }
@@ -215,114 +209,5 @@ kernel::module_pci_driver! {
     authors: ["Your Name"],
     description: "QEMU PCI EDU driver with DRM class device interface",
     license: "GPL v2",
-}
-```
-
----
-
-## Userspace Test Program (`test_edu.c`)
-
-You can find the updated `test_edu.c` program supporting the `fact` command below:
-
-```c
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <drm/drm.h>
-
-struct drm_edu_get_id {
-    __u32 id;
-};
-
-struct drm_edu_test_liveness {
-    __u32 val;
-    __u32 inv;
-};
-
-struct drm_edu_compute_factorial {
-    __u32 val;
-    __u32 res;
-};
-
-#define DRM_EDU_GET_ID             0x00
-#define DRM_EDU_TEST_LIVENESS      0x01
-#define DRM_EDU_COMPUTE_FACTORIAL  0x02
-
-#define DRM_IOCTL_EDU_GET_ID            DRM_IOR(DRM_COMMAND_BASE + DRM_EDU_GET_ID, struct drm_edu_get_id)
-#define DRM_IOCTL_EDU_TEST_LIVENESS     DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_TEST_LIVENESS, struct drm_edu_test_liveness)
-#define DRM_IOCTL_EDU_COMPUTE_FACTORIAL DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_COMPUTE_FACTORIAL, struct drm_edu_compute_factorial)
-
-void print_usage(const char *prog) {
-    fprintf(stderr, "Usage:\n");
-    fprintf(stderr, "  %s id              - Get device ID\n", prog);
-    fprintf(stderr, "  %s live <value>    - Test liveness (writes value, expects ~value)\n", prog);
-    fprintf(stderr, "  %s fact <value>    - Compute factorial of value\n", prog);
-}
-
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        print_usage(argv[0]);
-        return 1;
-    }
-
-    int fd = open("/dev/dri/renderD128", O_RDWR);
-    if (fd < 0) {
-        perror("Failed to open /dev/dri/renderD128");
-        return 1;
-    }
-
-    const char *cmd = argv[1];
-
-    if (strcmp(cmd, "id") == 0) {
-        struct drm_edu_get_id arg = {0};
-        if (ioctl(fd, DRM_IOCTL_EDU_GET_ID, &arg) < 0) {
-            perror("GET_ID failed");
-            close(fd);
-            return 1;
-        }
-        printf("Device ID: 0x%08x\n", arg.id);
-    } else if (strcmp(cmd, "live") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: 'live' requires an integer argument.\n");
-            print_usage(argv[0]);
-            close(fd);
-            return 1;
-        }
-        unsigned int val = strtoul(argv[2], NULL, 0);
-        struct drm_edu_test_liveness arg = { .val = val };
-        if (ioctl(fd, DRM_IOCTL_EDU_TEST_LIVENESS, &arg) < 0) {
-            perror("LIVENESS failed");
-            close(fd);
-            return 1;
-        }
-        printf("Liveness: written=0x%08x, read=0x%08x (expected: 0x%08x)\n",
-               val, arg.inv, ~val);
-    } else if (strcmp(cmd, "fact") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: 'fact' requires an integer argument.\n");
-            print_usage(argv[0]);
-            close(fd);
-            return 1;
-        }
-        unsigned int val = strtoul(argv[2], NULL, 0);
-        struct drm_edu_compute_factorial arg = { .val = val };
-        if (ioctl(fd, DRM_IOCTL_EDU_COMPUTE_FACTORIAL, &arg) < 0) {
-            perror("FACTORIAL failed");
-            close(fd);
-            return 1;
-        }
-        printf("Factorial: %u! = %u\n", val, arg.res);
-    } else {
-        fprintf(stderr, "Error: Unknown command '%s'\n", cmd);
-        print_usage(argv[0]);
-        close(fd);
-        return 1;
-    }
-
-    close(fd);
-    return 0;
 }
 ```

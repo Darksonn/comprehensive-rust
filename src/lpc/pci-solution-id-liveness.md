@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Solution: Device ID and Liveness
 
-You can find the solution code below. This code builds on top of the **Minimal DRM Driver** solution, adding MMIO mapping and real register reads for the `GET_ID` and `TEST_LIVENESS` IOCTLs.
+You can find the solution code below. This code builds on top of the **Minimal DRM Driver** solution, adding MMIO register definitions and real register reads/writes for the `GET_ID` and `TEST_LIVENESS` IOCTLs.
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
@@ -32,12 +32,10 @@ mod regs {
     use super::*;
 
     register! {
-        pub(super) ID(u32) @ 0x00 {
-            31:0 id;
-        }
-        pub(super) LIVENESS(u32) @ 0x04 {
-            31:0 val;
-        }
+        base: kernel::io::Region<END>;
+
+        pub(super) ID: u32 @ 0x00;
+        pub(super) LIVENESS: u32 @ 0x04;
     }
 
     pub(super) const END: usize = 0x80;
@@ -48,6 +46,7 @@ struct EduDriver;
 #[pin_data(PinnedDrop)]
 struct EduPciData<'bound> {
     pdev: ARef<pci::Device>,
+    #[pin]
     _reg: drm::Registration<'bound, EduDriver>,
 }
 
@@ -76,7 +75,7 @@ impl EduFile {
         arg: &mut uapi::drm_edu_get_id,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        arg.id = reg_data.bar.read(regs::ID).id().get();
+        arg.id = reg_data.bar.read(regs::ID);
         Ok(0)
     }
 
@@ -86,8 +85,8 @@ impl EduFile {
         arg: &mut uapi::drm_edu_test_liveness,
         _file: &drm::File<Self>,
     ) -> Result<u32> {
-        reg_data.bar.write(regs::LIVENESS, arg.val.into());
-        arg.inv = reg_data.bar.read(regs::LIVENESS).val().get();
+        reg_data.bar.write(regs::LIVENESS, arg.val);
+        arg.inv = reg_data.bar.read(regs::LIVENESS);
         Ok(0)
     }
 }
@@ -156,13 +155,11 @@ impl pci::Driver for EduDriver {
 
             // SAFETY: `_reg` is stored in `EduPciData` and dropped when the PCI driver is
             // unbound; it is never forgotten.
-            let _reg = unsafe {
-                drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data, 0)?
-            };
+            let _reg = unsafe { drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data) };
 
             Ok(try_pin_init!(EduPciData {
                 pdev: pdev.into(),
-                _reg,
+                _reg <- _reg,
             }))
         })
     }

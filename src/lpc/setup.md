@@ -32,8 +32,7 @@ export LIBCLANG_PATH=$llvm_prefix/lib/libclang.so
 cargo install --force --locked --root $llvm_prefix bindgen-cli --version 0.72.1
 ```
 
-> [!NOTE]
-> Ensure these environment variable exports are added to your `~/.bashrc` or shell profile so they persist across new terminal sessions when compiling or running QEMU later.
+> **Note:** Ensure these environment variable exports are added to your `~/.bashrc` or shell profile so they persist across new terminal sessions when compiling or running QEMU later.
 
 ## 2. Workspace Setup & Minimal Debian VM Image
 
@@ -47,8 +46,8 @@ mkdir -p ~/learn-rust && cd ~/learn-rust
 # Clone the development kernel branch for the course:
 git clone --branch rfl-course-edu https://github.com/Darksonn/linux.git
 
-# If you already cloned the repository earlier, pull the latest course updates:
-cd ~/learn-rust/linux && git pull
+# If you already cloned the repository earlier, update to the latest rebased branch:
+cd ~/learn-rust/linux && git fetch origin && git reset --hard origin/rfl-course-edu
 ```
 
 To build a reusable Debian Bookworm disk image with `build-essential` (`gcc`, `make`) pre-installed and automatic 9p workspace mounting, save the following script as `create-image.sh` in your workspace directory (`~/learn-rust`) and run it:

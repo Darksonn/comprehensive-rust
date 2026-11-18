@@ -25,19 +25,30 @@ The QEMU `edu` device has the following register specifications for this exercis
 
 ## Tasks
 
-1.  **Define Registers:** Add `FACTORIAL` and `STATUS` (with the `computing` bit at bit 0) to your `register!` macro.
+1.  **Define Registers:** Add `FACTORIAL: u32 @ 0x08;` (plain typed register) and `STATUS(u32) @ 0x20` (bitfield register with `0:0 computing;`) to your `register!` macro.
 2.  **Implement `compute_factorial` IOCTL:**
     *   Write `arg.val` to the `FACTORIAL` register.
     *   Use `read_poll_timeout` to poll the `STATUS` register until the `computing` bit becomes `0` (idle).
     *   Read the result from the `FACTORIAL` register and write it to `arg.res`.
 3.  **Register the IOCTL:** Add the `EDU_COMPUTE_FACTORIAL` IOCTL to `declare_drm_ioctls!` and map it to your callback.
 4.  **Synchronize Access (Stretch Goal):** If multiple users attempt to compute factorials simultaneously, they will interfere with each other's register writes. Synchronize access to the factorial registers with a Mutex to prevent this.
+    *   *Hint:* Import `kernel::sync::{new_mutex, Mutex}`, add `#[pin] fact_lock: Mutex<()>` to `EduDrmData`, and initialize it in `probe` with `fact_lock <- new_mutex!(())`.
 
 ---
 
 ## Testing
 
-Update your `test_edu.c` program on your host machine to support the new `fact` command (similar to how `live` was implemented), recompile it statically, and copy it to the VM.
+Update your `test_edu.c` program on your host machine to support the new `fact` command (similar to how `live` was implemented; see [`include/uapi/drm/qemu_edu_drm.h`](https://github.com/Darksonn/linux/blob/rfl-course-edu/include/uapi/drm/qemu_edu_drm.h)), recompile it statically, and copy it to the VM:
+
+```c
+struct drm_edu_compute_factorial {
+    __u32 val;
+    __u32 res;
+};
+
+#define DRM_EDU_COMPUTE_FACTORIAL  0x02
+#define DRM_IOCTL_EDU_COMPUTE_FACTORIAL DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_COMPUTE_FACTORIAL, struct drm_edu_compute_factorial)
+```
 
 Then test the new functionality:
 

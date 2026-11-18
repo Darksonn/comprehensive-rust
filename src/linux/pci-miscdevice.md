@@ -21,6 +21,7 @@ use kernel::{
     miscdevice::{MiscDevice, MiscDeviceOptions, MiscDeviceRegistration},
     pci,
     prelude::*,
+    sync::aref::ARef,
 };
 
 struct TestPciDriver;
@@ -32,15 +33,18 @@ struct TestPciData {
     _miscdev: MiscDeviceRegistration<TestPciMiscDevice>,
 }
 
+#[pin_data]
 struct TestPciMiscDevice {}
+
+#[pin_data]
+struct TestPciMiscFile {}
 
 #[vtable]
 impl MiscDevice for TestPciMiscDevice {
-    type Data = ();
-    type Ptr = Pin<KBox<Self>>;
+    type File = Pin<KBox<TestPciMiscFile>>;
 
-    fn open(_file: &File, _misc: &MiscDeviceRegistration<Self>) -> Result<Pin<KBox<Self>>> {
-        KBox::try_pin_init(try_pin_init!(TestPciMiscDevice {}), GFP_KERNEL)
+    fn open(_file: &File, _misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
+        KBox::try_pin_init(try_pin_init!(TestPciMiscFile {}), GFP_KERNEL)
     }
 }
 
@@ -62,20 +66,21 @@ impl pci::Driver for TestPciDriver {
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
         pin_init::pin_init_scope(move || {
             dev_info!(pdev, "Probing PCI testdev misc device!\n");
-            
+
             pdev.enable_device_mem()?;
             pdev.set_master();
 
             let options = MiscDeviceOptions {
                 name: c"pci-testdev",
-                parent: Some(pdev.as_ref()),
             };
-
-            let miscdev_init = MiscDeviceRegistration::register(options, ());
 
             Ok(try_pin_init!(TestPciData {
                 pdev: pdev.into(),
-                _miscdev <- miscdev_init,
+                // SAFETY: `_miscdev` is stored in `TestPciData` and dropped when the PCI
+                // device is unbound; `mem::forget()` is never called on it.
+                _miscdev <- unsafe {
+                    MiscDeviceRegistration::register(options, try_pin_init!(TestPciMiscDevice {}))
+                },
             }))
         })
     }
@@ -93,6 +98,7 @@ kernel::module_pci_driver! {
 <details>
 
 - Explain that `miscdevice` is a simplified interface for character devices that doesn't require allocating major numbers manually.
-- Point out how the registration is tied to the lifetime of `TestPciData`.
+- Point out how `_miscdev` is pinned inside `TestPciData`, so the character device is automatically unregistered when the PCI device is unbound.
+- However, notice that `MiscDevice::File` must be `'static` (because an open file descriptor can outlive `misc_deregister`), which means `TestPciMiscDevice` cannot directly borrow `'bound` PCI resources like `pci::Bar<'bound>` without wrapping them in `Devres<T>` and `Arc<T>`. Next, we'll see how the DRM subsystem solves this with `'drm` lifetimes and SRCU.
 
 </details>

@@ -32,6 +32,8 @@ mod regs {
     use super::*;
 
     register! {
+        base: kernel::io::Region<END>;
+
         // TODO: Define the hardware registers here.
     }
 
@@ -43,6 +45,7 @@ struct EduDriver;
 #[pin_data(PinnedDrop)]
 struct EduPciData<'bound> {
     pdev: ARef<pci::Device>,
+    #[pin]
     _reg: drm::Registration<'bound, EduDriver>,
 }
 
@@ -139,13 +142,11 @@ impl pci::Driver for EduDriver {
 
             // SAFETY: `_reg` is stored in `EduPciData` and dropped when the PCI driver is
             // unbound; it is never forgotten.
-            let _reg = unsafe {
-                drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data, 0)?
-            };
+            let _reg = unsafe { drm::Registration::new(pdev.as_ref(), unreg_dev, reg_data) };
 
             Ok(try_pin_init!(EduPciData {
                 pdev: pdev.into(),
-                _reg,
+                _reg <- _reg,
             }))
         })
     }

@@ -1,5 +1,5 @@
 ---
-minutes: 10
+minutes: 5
 ---
 
 <!--
@@ -7,11 +7,11 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Solution: Build your own driver
+# Solution: Build Your Own Driver
 
 ## Part 1: Single-File Driver
 
-`drivers/Kconfig`
+[`drivers/Kconfig`](https://github.com/Darksonn/linux/blob/rfl-course-edu/drivers/Kconfig)
 ```diff
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
@@ -24,7 +24,7 @@ SPDX-License-Identifier: CC-BY-4.0
  endmenu
 ```
 
-`drivers/Makefile`
+[`drivers/Makefile`](https://github.com/Darksonn/linux/blob/rfl-course-edu/drivers/Makefile)
 ```diff
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
@@ -45,10 +45,10 @@ config RUST_ALICE
 	depends on RUST
 	help
 	  This option builds Alice's driver.
-	
+
 	  To compile this as a module, choose M here:
 	  the module will be called rust_alice.
-	
+
 	  If unsure, say N.
 ```
 

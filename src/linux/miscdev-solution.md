@@ -16,18 +16,61 @@ Here is a complete solution implementing a shared IPC message board driver using
 
 //! Shared IPC Message Board Driver.
 
-use kernel::prelude::*;
-use kernel::sync::{new_mutex, Arc, Mutex};
-use kernel::fs::{File, Kiocb};
-use kernel::iov::{IovIterDest, IovIterSource};
-use kernel::miscdevice::{MiscDevice, MiscDeviceOptions, MiscDeviceRegistration};
+use core::fmt::Write;
+use kernel::{
+    device::Device,
+    fs::{File, Kiocb},
+    iov::{IovIterDest, IovIterSource},
+    miscdevice::{MiscDevice, MiscDeviceOptions, MiscDeviceRegistration},
+    new_mutex,
+    prelude::*,
+    sync::{aref::ARef, Arc, Mutex},
+};
 
 module! {
-    type: IpcModule,
-    name: "rust_ipc",
+    type: RustMiscDeviceModule,
+    name: "rust_misc_device",
     authors: ["Rust for Linux Course"],
     description: "Shared IPC Message Board Sample",
     license: "GPL",
+}
+
+#[pin_data]
+struct RustMiscDeviceModule {
+    #[pin]
+    _miscdev: MiscDeviceRegistration<RustMiscDevice>,
+}
+
+impl kernel::InPlaceModule for RustMiscDeviceModule {
+    fn init(_module: &'static ThisModule) -> impl PinInit<Self, Error> {
+        pin_init::pin_init_scope(move || {
+            pr_info!("Initializing Shared Rust Misc Device Sample\n");
+
+            let shared = Arc::pin_init(
+                try_pin_init!(SharedState {
+                    inner <- new_mutex!(Inner {
+                        buffer: KVVec::new(),
+                    }),
+                }),
+                GFP_KERNEL,
+            )?;
+
+            let options = MiscDeviceOptions {
+                name: c"rust-misc-device",
+            };
+
+            Ok(try_pin_init!(Self {
+                // SAFETY: `_miscdev` is stored in `RustMiscDeviceModule` and dropped when the
+                // module is unloaded; `mem::forget()` is never called on it.
+                _miscdev <- unsafe {
+                    MiscDeviceRegistration::register(
+                        options,
+                        try_pin_init!(RustMiscDevice { shared }),
+                    )
+                },
+            }))
+        })
+    }
 }
 
 struct Inner {
@@ -40,25 +83,36 @@ struct SharedState {
     inner: Mutex<Inner>,
 }
 
+/// Data shared by all open files for the same instance of this miscdevice.
 #[pin_data]
-struct FileContext {
+struct RustMiscDevice {
     shared: Arc<SharedState>,
 }
 
-#[vtable]
-impl MiscDevice for FileContext {
-    type Data = Arc<SharedState>;
-    type Ptr = Pin<KBox<Self>>;
+/// Data that is stored per file for this miscdevice.
+#[pin_data]
+struct RustMiscDeviceFile {
+    shared: Arc<SharedState>,
+    dev: ARef<Device>,
+}
 
-    fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Pin<KBox<Self>>> {
-        let shared = Arc::clone(misc.data());
+#[vtable]
+impl MiscDevice for RustMiscDevice {
+    type File = Pin<KBox<RustMiscDeviceFile>>;
+
+    fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
+        let dev = ARef::from(misc.device());
+
         KBox::try_pin_init(
-            try_pin_init!(FileContext { shared }),
+            try_pin_init!(RustMiscDeviceFile {
+                shared: Arc::clone(&misc.shared),
+                dev,
+            }),
             GFP_KERNEL,
         )
     }
 
-    fn write_iter(mut kiocb: Kiocb<'_, Self::Ptr>, iov: &mut IovIterSource<'_>) -> Result<usize> {
+    fn write_iter(mut kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterSource<'_>) -> Result<usize> {
         let me = kiocb.file();
         let mut data = KVec::new();
         iov.copy_from_iter_vec(&mut data, GFP_KERNEL)?;
@@ -68,84 +122,31 @@ impl MiscDevice for FileContext {
         // Format prefix onto stack
         let mut buf = [0u8; 32];
         let mut formatter = kernel::str::Formatter::new(&mut buf);
-        use core::fmt::Write;
         let _ = write!(formatter, "[PID {}]: ", pid);
-        let prefix_len = formatter.bytes_written();
-        let prefix = &buf[..prefix_len];
+        let prefix = &buf[..formatter.bytes_written()];
 
         let mut guard = me.shared.inner.lock();
-        // Clear previous message and format new message with PID prefix:
         guard.buffer.clear();
         guard.buffer.extend_from_slice(prefix, GFP_KERNEL)?;
         guard.buffer.extend_from_slice(&data, GFP_KERNEL)?;
 
-        // Reset position on write
         *kiocb.ki_pos_mut() = 0;
 
         Ok(data.len())
     }
 
-    fn read_iter(mut kiocb: Kiocb<'_, Self::Ptr>, iov: &mut IovIterDest<'_>) -> Result<usize> {
+    fn read_iter(mut kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterDest<'_>) -> Result<usize> {
         let me = kiocb.file();
-        let guard = me.shared.inner.lock();
-        let buf_len = guard.buffer.len();
-
-        let offset = kiocb.ki_pos();
-        if offset as usize >= buf_len {
-            return Ok(0); // EOF
-        }
-
-        let slice = &guard.buffer[offset as usize..];
-        let to_copy = core::cmp::min(iov.len(), slice.len());
-
-        // Clone slice to release the mutex before interacting with user space:
-        let mut temp = KVec::new();
-        temp.extend_from_slice(&slice[..to_copy], GFP_KERNEL)?;
-        drop(guard);
-
-        let num_written = iov.copy_to_iter(&temp);
-        *kiocb.ki_pos_mut() += num_written as i64;
-
-        Ok(num_written)
-    }
-}
-
-struct IpcModule {
-    _reg: Pin<KBox<MiscDeviceRegistration<FileContext>>>,
-}
-
-impl kernel::Module for IpcModule {
-    fn init(_module: &'static ThisModule) -> Result<Self> {
-        pr_info!("Rust IPC Message Board loaded\n");
-
-        let shared = Arc::pin_init(
-            try_pin_init!(SharedState {
-                inner <- new_mutex!(Inner {
-                    buffer: KVVec::new(),
-                }),
-            }),
-            GFP_KERNEL,
-        )?;
-
-        let options = MiscDeviceOptions {
-            name: c"rust_ipc",
-            parent: None,
-        };
-
-        let reg = KBox::try_pin_init(
-            MiscDeviceRegistration::register(options, shared),
-            GFP_KERNEL,
-        )?;
-
-        Ok(IpcModule { _reg: reg })
+        let inner = me.shared.inner.lock();
+        let read = iov.simple_read_from_buffer(kiocb.ki_pos_mut(), &inner.buffer)?;
+        Ok(read)
     }
 }
 ```
 
 <details>
 
-- **Architectural Pattern:** This pattern—separating global driver state (`SharedState`) from per-open file state (`FileContext`) via `Arc<T>`—is the exact architectural foundation used by production kernel IPC drivers like **Binder**.
-- **Early Lock Release:** Highlight how `read()` copies data into a small local buffer and invokes `drop(guard)` before `writer.write_slice(&temp)?` touches user space memory.
-- **OOM Safety:** Point out that all buffer resizes, clones, and allocations use `GFP_KERNEL` and the `?` operator.
+- **Architectural Pattern:** Separating registration-wide state (`RustMiscDevice` holding `Arc<SharedState>`) from per-open file state (`RustMiscDeviceFile`) is the foundation used by character device and IPC drivers.
+- Note that if no per-file fields are needed beyond `Arc<SharedState>`, you can even set `type File = Arc<SharedState>;` and return `Ok(Arc::clone(&misc.shared))` directly from `open()`!
 
 </details>

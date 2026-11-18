@@ -11,6 +11,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ```rust,ignore
 register! {
+    base: Region<END>;
+
+    pub(super) COUNT: u32 @ 0x0C;
     pub(super) STATUS(u32) @ 0x20 {
         7:4 mode;
         0:0 busy;
@@ -18,22 +21,23 @@ register! {
 }
 ```
 
-Expands to both a **location constant** and a **bitfield struct** in `mod regs`:
+Expands to **location constants** (and a **bitfield struct** when fields are specified):
 
 ```rust,ignore
-pub(super) const STATUS: FixedRegisterLoc<STATUS> = FixedRegisterLoc::new();
+// Plain typed register: just an OffsetLoc constant for `u32`.
+pub(super) const COUNT: OffsetLoc<Region<END>, u32> = OffsetLoc::new(0x0C);
+
+// Bitfield register: both an OffsetLoc constant and a bitfield struct.
+pub(super) const STATUS: OffsetLoc<Region<END>, STATUS> = OffsetLoc::new(0x20);
 
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) struct STATUS(u32);
 
-impl Register for STATUS {
-    type Storage = u32;
-    const OFFSET: usize = 0x20;
+impl FixedIoLoc<Region<END>> for STATUS {
+    type Location = OffsetLoc<Region<END>, STATUS>;
+    const LOCATION: Self::Location = STATUS;
 }
-impl FixedRegister for STATUS {}
-impl From<u32> for STATUS { ... }
-impl From<STATUS> for u32 { ... }
 
 impl STATUS {
     pub(super) const fn from_raw(value: u32) -> Self { Self(value) }
@@ -42,7 +46,6 @@ impl STATUS {
     pub(super) fn mode(self) -> Bounded<u32, 4> { ... }
     pub(super) fn with_mode<T: Into<Bounded<u32, 4>>>(self, val: T) -> Self { ... }
     pub(super) const fn with_const_mode<const V: u32>(self) -> Self { ... }
-    pub(super) fn try_with_mode<T: TryIntoBounded<u32, 4>>(self, val: T) -> Result<Self> { ... }
 
     pub(super) fn busy(self) -> Bounded<u32, 1> { ... }
     pub(super) fn with_busy<T: Into<Bounded<u32, 1>>>(self, val: T) -> Self { ... }
@@ -51,13 +54,15 @@ impl STATUS {
 
 <details>
 
-- **Dual namespace trick (`const STATUS` + `struct STATUS`):**
-  - When you write `bar.read(regs::STATUS)`, `regs::STATUS` refers to the `const STATUS: FixedRegisterLoc<STATUS>`, which tells `Io::read` both the offset (`0x20`) and the return type (`struct STATUS`).
+- **Plain typed registers (`COUNT: u32 @ 0x0C;`):**
+  - Generates only `const COUNT: OffsetLoc<Region<END>, u32> = OffsetLoc::new(0x0C);`.
+  - `bar.read(regs::COUNT)` returns `u32` directly and `bar.write(regs::COUNT, val)` takes `u32` directly.
+- **Bitfield registers (`STATUS(u32) @ 0x20 { ... }`):**
+  - Uses Rust's separate value and type namespaces: `const STATUS` is the `OffsetLoc<Region<END>, STATUS>` passed to `bar.read(regs::STATUS)`, while `struct STATUS(u32)` is the returned bitfield value.
 - **`Bounded<T, N>`:**
-  - Field getters return `Bounded<u32, N>`, which statically guarantees the value uses at most `N` bits.
+  - Bitfield getters return `Bounded<u32, N>`, which statically guarantees the value uses at most `N` bits.
   - Call `.get()` (or dereference `*`, or `.into()`) to extract the `u32`, or compare directly (`status.busy() == 0`). For 1-bit fields, `.into_bool()` converts to `bool`.
-- **Constructing values to write:**
-  - **Whole register:** `bar.write(regs::STATUS, raw_u32.into())` uses `From<u32> for STATUS`.
-  - **Bitfield builders:** `STATUS::zeroed().with_busy(true).with_const_mode::<3>()` sets individual bit ranges without manual shifts or masks. Because `STATUS` implements `FixedRegister`, you can write it with either `bar.write(regs::STATUS, val)` or the single-argument `bar.write_reg(val)`.
+- **Constructing bitfield values to write:**
+  - `STATUS::zeroed().with_busy(true).with_const_mode::<3>()` sets individual bit ranges without manual shifts or masks. Because `STATUS` implements `FixedIoLoc`, you can write it with either `bar.write(regs::STATUS, val)` or the single-argument `bar.write_reg(val)`.
 
 </details>

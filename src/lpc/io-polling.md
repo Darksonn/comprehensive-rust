@@ -23,12 +23,14 @@ where
 
 ```rust,ignore
 use kernel::{
-    io::{poll::read_poll_timeout, register, Io},
+    io::{poll::read_poll_timeout, register, Io, Region},
     pci,
     time::Delta,
 };
 
 register! {
+    base: Region<0x80>;
+
     STATUS(u32) @ 0x20 {
         0:0 busy;
     }
