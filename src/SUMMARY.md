@@ -412,12 +412,14 @@ SPDX-License-Identifier: CC-BY-4.0
   - [Mutex Guards](linux/mutex-guard.md)
   - [Early Lock Release](linux/mutex-guard-drop.md)
   - [Mutexes vs. Spinlocks](linux/mutex-spinlock.md)
+  - [Condition Variables](linux/mutex-condvar.md)
 - [Pinned Initialization](linux/pin-init.md)
   - [Mutex Initialization](linux/pin-init-mutex.md)
   - [In-Place Initialization](linux/pin-init-solution.md)
 - [Character Devices](linux/miscdev-walkthrough.md)
-  - [Exercise: Shared IPC Message Board](linux/miscdev-exercise.md)
-  - [Solution: Shared IPC Message Board](linux/miscdev-solution.md)
+  - [Sharing State Across Open Files](linux/miscdev-shared.md)
+  - [Exercise: Kernel Message Board](linux/miscdev-exercise.md)
+  - [Solution: Kernel Message Board](linux/miscdev-solution.md)
 
 # Rust for Linux: Day 2 Morning
 

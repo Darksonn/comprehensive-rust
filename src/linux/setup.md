@@ -129,12 +129,14 @@ make LLVM=1 x86_64_defconfig
 make LLVM=1 kvm_guest.config
 
 # Enable Rust for Linux, DRM, and the course sample drivers:
+./scripts/config --disable CONFIG_LOCALVERSION_AUTO
 ./scripts/config --enable CONFIG_RUST
 ./scripts/config --enable CONFIG_DRM
 ./scripts/config --enable CONFIG_SAMPLES
 ./scripts/config --enable CONFIG_SAMPLES_RUST
 ./scripts/config --module SAMPLE_RUST_MINIMAL
 ./scripts/config --module SAMPLE_RUST_MISC_DEVICE
+./scripts/config --module SAMPLE_RUST_MESSAGE_BOARD
 ./scripts/config --module SAMPLE_RUST_DRIVER_PCI_EDU_DRM
 
 # Enable 9p filesystem support (required for sharing hostshare via /mnt):

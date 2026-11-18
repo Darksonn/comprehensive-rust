@@ -1,5 +1,5 @@
 ---
-minutes: 15
+minutes: 10
 ---
 
 <!--
@@ -7,65 +7,66 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Solution: Shared IPC Message Board
+# Solution: Kernel Message Board
 
-Here is a complete solution implementing a shared IPC message board driver using `Arc<SharedState>`:
+Here is a complete solution for [`samples/rust/rust_message_board.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/samples/rust/rust_message_board.rs) with per-file cursors, PID prefixes, and live `CondVar` streaming:
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
 
-//! Shared IPC Message Board Driver.
+//! Rust message board character device solution.
 
-use core::fmt::Write;
 use kernel::{
     device::Device,
     fs::{File, Kiocb},
     iov::{IovIterDest, IovIterSource},
     miscdevice::{MiscDevice, MiscDeviceOptions, MiscDeviceRegistration},
-    new_mutex,
+    new_condvar, new_mutex,
     prelude::*,
-    sync::{aref::ARef, Arc, Mutex},
+    str::CString,
+    sync::{aref::ARef, Arc, CondVar, Mutex},
 };
 
 module! {
-    type: RustMiscDeviceModule,
-    name: "rust_misc_device",
+    type: RustMessageBoardModule,
+    name: "rust_message_board",
     authors: ["Rust for Linux Course"],
-    description: "Shared IPC Message Board Sample",
+    description: "Rust message board exercise",
     license: "GPL",
 }
 
 #[pin_data]
-struct RustMiscDeviceModule {
+struct RustMessageBoardModule {
     #[pin]
-    _miscdev: MiscDeviceRegistration<RustMiscDevice>,
+    _miscdev: MiscDeviceRegistration<RustMessageBoard>,
 }
 
-impl kernel::InPlaceModule for RustMiscDeviceModule {
+impl kernel::InPlaceModule for RustMessageBoardModule {
     fn init(_module: &'static ThisModule) -> impl PinInit<Self, Error> {
         pin_init::pin_init_scope(move || {
-            pr_info!("Initializing Shared Rust Misc Device Sample\n");
+            pr_info!("Initialising Rust Message Board\n");
 
             let shared = Arc::pin_init(
                 try_pin_init!(SharedState {
                     inner <- new_mutex!(Inner {
-                        buffer: KVVec::new(),
+                        messages: KVec::new(),
                     }),
+                    condvar <- new_condvar!(),
                 }),
                 GFP_KERNEL,
             )?;
 
             let options = MiscDeviceOptions {
-                name: c"rust-misc-device",
+                name: c"rust-message-board",
             };
 
             Ok(try_pin_init!(Self {
-                // SAFETY: `_miscdev` is stored in `RustMiscDeviceModule` and dropped when the
+                // SAFETY: `_miscdev` is stored in `RustMessageBoardModule` and dropped when the
                 // module is unloaded; `mem::forget()` is never called on it.
                 _miscdev <- unsafe {
                     MiscDeviceRegistration::register(
                         options,
-                        try_pin_init!(RustMiscDevice { shared }),
+                        try_pin_init!(RustMessageBoard { shared }),
                     )
                 },
             }))
@@ -74,79 +75,104 @@ impl kernel::InPlaceModule for RustMiscDeviceModule {
 }
 
 struct Inner {
-    buffer: KVVec<u8>,
+    messages: KVec<KVec<u8>>,
 }
 
 #[pin_data]
 struct SharedState {
     #[pin]
     inner: Mutex<Inner>,
+    #[pin]
+    condvar: CondVar,
 }
 
 /// Data shared by all open files for the same instance of this miscdevice.
 #[pin_data]
-struct RustMiscDevice {
+struct RustMessageBoard {
     shared: Arc<SharedState>,
 }
 
 /// Data that is stored per file for this miscdevice.
-#[pin_data]
-struct RustMiscDeviceFile {
+#[pin_data(PinnedDrop)]
+struct RustMessageBoardFile {
     shared: Arc<SharedState>,
     dev: ARef<Device>,
+    #[pin]
+    cursor: Mutex<usize>,
 }
 
 #[vtable]
-impl MiscDevice for RustMiscDevice {
-    type File = Pin<KBox<RustMiscDeviceFile>>;
+impl MiscDevice for RustMessageBoard {
+    type File = Pin<KBox<RustMessageBoardFile>>;
 
     fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
         let dev = ARef::from(misc.device());
 
+        dev_info!(dev, "Opening Rust Message Board\n");
+
         KBox::try_pin_init(
-            try_pin_init!(RustMiscDeviceFile {
+            try_pin_init!(RustMessageBoardFile {
                 shared: Arc::clone(&misc.shared),
                 dev,
+                cursor <- new_mutex!(0),
             }),
             GFP_KERNEL,
         )
     }
 
-    fn write_iter(mut kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterSource<'_>) -> Result<usize> {
+    fn read_iter(kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterDest<'_>) -> Result<usize> {
         let me = kiocb.file();
-        let mut data = KVec::new();
-        iov.copy_from_iter_vec(&mut data, GFP_KERNEL)?;
 
-        let pid = current!().pid();
+        let mut cursor = me.cursor.lock();
+        let mut inner = me.shared.inner.lock();
+        while *cursor >= inner.messages.len() {
+            if me.shared.condvar.wait_interruptible(&mut inner) {
+                return Err(ERESTARTSYS);
+            }
+        }
 
-        // Format prefix onto stack
-        let mut buf = [0u8; 32];
-        let mut formatter = kernel::str::Formatter::new(&mut buf);
-        let _ = write!(formatter, "[PID {}]: ", pid);
-        let prefix = &buf[..formatter.bytes_written()];
-
-        let mut guard = me.shared.inner.lock();
-        guard.buffer.clear();
-        guard.buffer.extend_from_slice(prefix, GFP_KERNEL)?;
-        guard.buffer.extend_from_slice(&data, GFP_KERNEL)?;
-
-        *kiocb.ki_pos_mut() = 0;
-
-        Ok(data.len())
+        let written = iov.copy_to_iter(&inner.messages[*cursor]);
+        *cursor += 1;
+        Ok(written)
     }
 
-    fn read_iter(mut kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterDest<'_>) -> Result<usize> {
+    fn write_iter(kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterSource<'_>) -> Result<usize> {
+        if iov.is_empty() {
+            return Ok(0);
+        }
+
         let me = kiocb.file();
-        let inner = me.shared.inner.lock();
-        let read = iov.simple_read_from_buffer(kiocb.ki_pos_mut(), &inner.buffer)?;
-        Ok(read)
+        let prefix = CString::try_from_fmt(fmt!("[PID {}]: ", current!().pid()))?;
+
+        let mut msg = KVec::new();
+        msg.extend_from_slice(prefix.to_bytes(), GFP_KERNEL)?;
+        let len = iov.copy_from_iter_vec(&mut msg, GFP_KERNEL)?;
+        if len == 0 {
+            return Ok(0);
+        }
+
+        {
+            let mut inner = me.shared.inner.lock();
+            inner.messages.push(msg, GFP_KERNEL)?;
+        }
+        me.shared.condvar.notify_all();
+
+        Ok(len)
+    }
+}
+
+#[pinned_drop]
+impl PinnedDrop for RustMessageBoardFile {
+    fn drop(self: Pin<&mut Self>) {
+        dev_info!(self.dev, "Closing Rust Message Board\n");
     }
 }
 ```
 
 <details>
 
-- **Architectural Pattern:** Separating registration-wide state (`RustMiscDevice` holding `Arc<SharedState>`) from per-open file state (`RustMiscDeviceFile`) is the foundation used by character device and IPC drivers.
-- Note that if no per-file fields are needed beyond `Arc<SharedState>`, you can even set `type File = Arc<SharedState>;` and return `Ok(Arc::clone(&misc.shared))` directly from `open()`!
+- **Why `cursor: Mutex<usize>`?** `kiocb.file()` yields a shared reference (`Pin<&RustMessageBoardFile>`) because multiple threads sharing a file descriptor (via `dup()` or `fork()`) can call `read()` concurrently. Rust's type system forces us to synchronize `cursor`!
+- **Why `notify_all()` instead of `notify_one()`?** Multiple processes may have `/dev/rust-message-board` open simultaneously, and *every* waiting reader needs to wake up to read the newly posted message at its own cursor.
+- **Holding `Mutex` vs. releasing early:** Copying to user space (`copy_to_iter`) while holding `Mutex` is sound because `Mutex` is a sleeping lock (whereas holding a `SpinLock` across `copy_to_iter` would be a sleeping-in-atomic bug!). If you want to avoid blocking writers while a slow reader page-faults, you can store `KVec<Arc<KVec<u8>>>`, clone the `Arc` under the lock, `drop(inner)`, and then call `iov.copy_to_iter(&msg)`.
 
 </details>
