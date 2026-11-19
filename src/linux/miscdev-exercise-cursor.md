@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Exercise: Discrete Messages & Per-File Cursor
+# Part 2: Discrete Messages & Per-File Cursor
 
 A single flat `KVVec<u8>` loses message boundaries. Replace it with a list of discrete messages and track which message each open file descriptor should read next.
 
@@ -43,3 +43,5 @@ dd bs=1024 count=1 <&3 2>/dev/null   # Output: second message
 dd bs=1024 count=1 <&3 2>/dev/null   # Output: (EOF)
 exec 3<&-
 ```
+
+*Want to check your work before moving on to Part 3? See [Solution: Part 2](miscdev-solution-cursor.md).*

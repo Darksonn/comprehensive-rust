@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Solution: Discrete Messages & Per-File Cursor
+# Solution: Part 2 — Discrete Messages & Per-File Cursor
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
@@ -151,6 +151,8 @@ impl PinnedDrop for RustMessageBoardFile {
     }
 }
 ```
+
+*Continue to [Part 3: Live Streaming with `CondVar`](miscdev-exercise-condvar.md).*
 
 <details>
 

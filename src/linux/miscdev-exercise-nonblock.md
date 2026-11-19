@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Exercise: Non-Blocking Reads (`O_NONBLOCK`)
+# Part 4: Non-Blocking Reads (`O_NONBLOCK`)
 
 Now that `read_iter()` sleeps until a message is available, callers opening `/dev/rust-message-board` with `O_NONBLOCK` expect `EAGAIN` instead of blocking when no unread messages exist.
 
@@ -31,3 +31,5 @@ echo "queued message" >> /dev/rust-message-board
 dd if=/dev/rust-message-board iflag=nonblock
 # Prints "queued message", then exits with "Resource temporarily unavailable" (EAGAIN)!
 ```
+
+*Want to check your work before moving on to Part 5? See [Solution: Part 4](miscdev-solution-nonblock.md).*

@@ -1,5 +1,5 @@
 ---
-minutes: 10
+minutes: 7
 ---
 
 <!--
@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Exercise: Clearing the Board (`O_TRUNC`)
+# Part 5: Clearing the Board (`O_TRUNC`)
 
 In a shell, `>>` opens a file without `O_TRUNC` (append), whereas `>` passes `flags::O_TRUNC` to `open()`. Make `>` clear old messages without breaking already-open live readers!
 
@@ -38,3 +38,5 @@ dd if=/dev/rust-message-board iflag=nonblock 2>/dev/null
 # Prints ONLY "fresh start", while the background `cat` receives both!
 kill -INT %1
 ```
+
+*Finished! Compare your implementation with [Solution: Part 5](miscdev-solution-trunc.md).*

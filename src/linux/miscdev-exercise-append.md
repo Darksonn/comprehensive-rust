@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Exercise: Append Instead of Overwrite
+# Part 1: Append Instead of Overwrite
 
 Inspect the shared-buffer starter stub at [`samples/rust/rust_message_board.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/samples/rust/rust_message_board.rs) (exposed as `/dev/rust-message-board`).
 
@@ -35,3 +35,5 @@ cat /dev/rust-message-board
 # hello
 # world
 ```
+
+*Want to check your work before moving on to Part 2? See [Solution: Part 1](miscdev-solution-append.md).*

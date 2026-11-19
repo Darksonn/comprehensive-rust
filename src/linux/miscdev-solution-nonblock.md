@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Solution: Non-Blocking Reads (`O_NONBLOCK`)
+# Solution: Part 4 — Non-Blocking Reads (`O_NONBLOCK`)
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
@@ -165,3 +165,5 @@ impl PinnedDrop for RustMessageBoardFile {
     }
 }
 ```
+
+*Continue to [Part 5: Clearing the Board (`O_TRUNC`)](miscdev-exercise-trunc.md).*

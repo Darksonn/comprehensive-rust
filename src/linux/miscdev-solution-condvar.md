@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Solution: Live Streaming with `CondVar`
+# Solution: Part 3 — Live Streaming with `CondVar`
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
@@ -159,6 +159,8 @@ impl PinnedDrop for RustMessageBoardFile {
     }
 }
 ```
+
+*Continue to [Part 4: Non-Blocking Reads (`O_NONBLOCK`)](miscdev-exercise-nonblock.md).*
 
 <details>
 

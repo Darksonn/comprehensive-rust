@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Solution: Append Instead of Overwrite
+# Solution: Part 1 — Append Instead of Overwrite
 
 Removing `inner.buffer.clear()` makes `iov.copy_from_iter_vec()` append each incoming write onto `inner.buffer`:
 
@@ -136,3 +136,5 @@ impl PinnedDrop for RustMessageBoardFile {
     }
 }
 ```
+
+*Continue to [Part 2: Discrete Messages & Per-File Cursor](miscdev-exercise-cursor.md).*

@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Exercise: Live Streaming with `CondVar`
+# Part 3: Live Streaming with `CondVar`
 
 Turn `cat /dev/rust-message-board` into a live message stream (`tail -f` style) so readers wait for new posts instead of exiting at EOF.
 
@@ -43,3 +43,5 @@ echo "hello live readers!" >> /dev/rust-message-board
 echo "another live message!" >> /dev/rust-message-board
 kill -INT %1
 ```
+
+*Want to check your work before moving on to Part 4? See [Solution: Part 3](miscdev-solution-condvar.md).*

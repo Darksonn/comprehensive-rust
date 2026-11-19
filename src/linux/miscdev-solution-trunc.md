@@ -7,7 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Solution: Clearing the Board (`O_TRUNC`)
+# Solution: Part 5 — Clearing the Board (`O_TRUNC`)
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
