@@ -1,5 +1,5 @@
 ---
-minutes: 10
+minutes: 5
 ---
 
 <!--
@@ -7,9 +7,7 @@ Copyright 2026 Google LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Solution: Kernel Message Board
-
-Here is a complete solution for [`samples/rust/rust_message_board.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/samples/rust/rust_message_board.rs) with per-file cursors, PID prefixes, and live `CondVar` streaming:
+# Solution: Clearing the Board (`O_TRUNC`)
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
@@ -18,12 +16,11 @@ Here is a complete solution for [`samples/rust/rust_message_board.rs`](https://g
 
 use kernel::{
     device::Device,
-    fs::{File, Kiocb},
+    fs::{file::flags, File, Kiocb},
     iov::{IovIterDest, IovIterSource},
     miscdevice::{MiscDevice, MiscDeviceOptions, MiscDeviceRegistration},
     new_condvar, new_mutex,
     prelude::*,
-    str::CString,
     sync::{aref::ARef, Arc, CondVar, Mutex},
 };
 
@@ -44,11 +41,12 @@ struct RustMessageBoardModule {
 impl kernel::InPlaceModule for RustMessageBoardModule {
     fn init(_module: &'static ThisModule) -> impl PinInit<Self, Error> {
         pin_init::pin_init_scope(move || {
-            pr_info!("Initialising Rust Message Board\n");
+            pr_info!("Initializing Rust Message Board\n");
 
             let shared = Arc::pin_init(
                 try_pin_init!(SharedState {
                     inner <- new_mutex!(Inner {
+                        base: 0,
                         messages: KVec::new(),
                     }),
                     condvar <- new_condvar!(),
@@ -75,6 +73,7 @@ impl kernel::InPlaceModule for RustMessageBoardModule {
 }
 
 struct Inner {
+    base: usize,
     messages: KVec<KVec<u8>>,
 }
 
@@ -86,35 +85,40 @@ struct SharedState {
     condvar: CondVar,
 }
 
-/// Data shared by all open files for the same instance of this miscdevice.
 #[pin_data]
 struct RustMessageBoard {
     shared: Arc<SharedState>,
 }
 
-/// Data that is stored per file for this miscdevice.
 #[pin_data(PinnedDrop)]
 struct RustMessageBoardFile {
     shared: Arc<SharedState>,
     dev: ARef<Device>,
     #[pin]
     cursor: Mutex<usize>,
+    nonblock: bool,
 }
 
 #[vtable]
 impl MiscDevice for RustMessageBoard {
     type File = Pin<KBox<RustMessageBoardFile>>;
 
-    fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
+    fn open(file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
         let dev = ARef::from(misc.device());
+        let nonblock = (file.flags() & flags::O_NONBLOCK) != 0;
 
-        dev_info!(dev, "Opening Rust Message Board\n");
+        if (file.flags() & flags::O_TRUNC) != 0 {
+            let mut inner = misc.shared.inner.lock();
+            inner.base += inner.messages.len();
+            inner.messages.clear();
+        }
 
         KBox::try_pin_init(
             try_pin_init!(RustMessageBoardFile {
                 shared: Arc::clone(&misc.shared),
                 dev,
                 cursor <- new_mutex!(0),
+                nonblock,
             }),
             GFP_KERNEL,
         )
@@ -125,13 +129,23 @@ impl MiscDevice for RustMessageBoard {
 
         let mut cursor = me.cursor.lock();
         let mut inner = me.shared.inner.lock();
-        while *cursor >= inner.messages.len() {
+        let msg = loop {
+            if *cursor < inner.base {
+                *cursor = inner.base;
+            }
+            let idx = *cursor - inner.base;
+            if let Some(msg) = inner.messages.get(idx) {
+                break msg;
+            }
+            if me.nonblock {
+                return Err(EAGAIN);
+            }
             if me.shared.condvar.wait_interruptible(&mut inner) {
                 return Err(ERESTARTSYS);
             }
-        }
+        };
 
-        let written = iov.copy_to_iter(&inner.messages[*cursor]);
+        let written = iov.copy_to_iter(msg);
         *cursor += 1;
         Ok(written)
     }
@@ -142,10 +156,7 @@ impl MiscDevice for RustMessageBoard {
         }
 
         let me = kiocb.file();
-        let prefix = CString::try_from_fmt(fmt!("[PID {}]: ", current!().pid()))?;
-
         let mut msg = KVec::new();
-        msg.extend_from_slice(prefix.to_bytes(), GFP_KERNEL)?;
         let len = iov.copy_from_iter_vec(&mut msg, GFP_KERNEL)?;
         if len == 0 {
             return Ok(0);
@@ -171,8 +182,8 @@ impl PinnedDrop for RustMessageBoardFile {
 
 <details>
 
-- **Why `cursor: Mutex<usize>`?** `kiocb.file()` yields a shared reference (`Pin<&RustMessageBoardFile>`) because multiple threads sharing a file descriptor (via `dup()` or `fork()`) can call `read()` concurrently. Rust's type system forces us to synchronize `cursor`!
-- **Why `notify_all()` instead of `notify_one()`?** Multiple processes may have `/dev/rust-message-board` open simultaneously, and *every* waiting reader needs to wake up to read the newly posted message at its own cursor.
-- **Holding `Mutex` vs. releasing early:** Copying to user space (`copy_to_iter`) while holding `Mutex` is sound because `Mutex` is a sleeping lock (whereas holding a `SpinLock` across `copy_to_iter` would be a sleeping-in-atomic bug!). If you want to avoid blocking writers while a slow reader page-faults, you can store `KVec<Arc<KVec<u8>>>`, clone the `Arc` under the lock, `drop(inner)`, and then call `iov.copy_to_iter(&msg)`.
+- **Why track `base` instead of resetting everyone to `0`?** Open file descriptors cannot safely be mutated when another process runs `> /dev/rust-message-board`. Keeping a monotonically increasing logical sequence space (`base` + index) lets already-open live readers seamlessly pick up right where they left off without bounds underflow.
+- **Note on `fcntl(F_SETFL)`:** Reading `O_NONBLOCK` in `open()` handles `dd iflag=nonblock` and `open(..., O_NONBLOCK)` cleanly; a production driver can read `file.flags()` on each `read_iter()` call if it also wants to react to `fcntl(F_SETFL)` toggles after `open()`.
+- **Stretch improvement (`Arc<KVec<u8>>`):** Right now `read_iter()` holds `inner.lock()` across `iov.copy_to_iter(msg)`. Storing `KVec<Arc<KVec<u8>>>` lets you clone the `Arc`, `drop(inner)`, and copy to user space without holding the shared lock.
 
 </details>

@@ -418,8 +418,16 @@ SPDX-License-Identifier: CC-BY-4.0
   - [In-Place Initialization](linux/pin-init-solution.md)
 - [Character Devices](linux/miscdev-walkthrough.md)
   - [Sharing State Across Open Files](linux/miscdev-shared.md)
-  - [Exercise: Kernel Message Board](linux/miscdev-exercise.md)
-  - [Solution: Kernel Message Board](linux/miscdev-solution.md)
+  - [Exercise: Append Instead of Overwrite](linux/miscdev-exercise-append.md)
+  - [Solution: Append Instead of Overwrite](linux/miscdev-solution-append.md)
+  - [Exercise: Discrete Messages & Per-File Cursor](linux/miscdev-exercise-cursor.md)
+  - [Solution: Discrete Messages & Per-File Cursor](linux/miscdev-solution-cursor.md)
+  - [Exercise: Live Streaming with `CondVar`](linux/miscdev-exercise-condvar.md)
+  - [Solution: Live Streaming with `CondVar`](linux/miscdev-solution-condvar.md)
+  - [Exercise: Non-Blocking Reads (`O_NONBLOCK`)](linux/miscdev-exercise-nonblock.md)
+  - [Solution: Non-Blocking Reads (`O_NONBLOCK`)](linux/miscdev-solution-nonblock.md)
+  - [Exercise: Clearing the Board (`O_TRUNC`)](linux/miscdev-exercise-trunc.md)
+  - [Solution: Clearing the Board (`O_TRUNC`)](linux/miscdev-solution-trunc.md)
 
 # Rust for Linux: Day 2 Morning
 

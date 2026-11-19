@@ -56,6 +56,6 @@ impl MiscDevice for RustMessageBoard {
   1. In `init()`, allocate `let shared = Arc::pin_init(try_pin_init!(SharedState { ... }), GFP_KERNEL)?;` and pass `try_pin_init!(RustMiscDevice { shared })` to `MiscDeviceRegistration::register`.
   2. Why `Arc<SharedState>` instead of borrowing `&RustMessageBoard` directly in `RustMessageBoardFile`? Because `MiscDevice::File` must be `'static`: unregistering a `miscdevice` stops *new* `open()` calls, while already-open file descriptors remain valid until user space closes them.
   3. Point out that this completed shared-buffer starting point is also available in the repository at [`samples/rust/rust_message_board.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/samples/rust/rust_message_board.rs) (exposing `/dev/rust-message-board`).
-- **Lead-in to the exercise:** Right now `Inner` still holds a single `buffer: KVVec<u8>` that every `write_iter` clears and overwrites. Next, you'll turn it into a real multi-message board where readers stream messages one by one!
+- **Lead-in to the exercise:** Right now `Inner` still holds a single `buffer: KVVec<u8>` that every `write_iter` clears and overwrites. Over the next several small milestones, you'll evolve it into a multi-message board with cursors, live streaming, non-blocking reads, and `O_TRUNC` clearing!
 
 </details>
