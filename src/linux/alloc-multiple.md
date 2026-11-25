@@ -26,7 +26,7 @@ let flexible_buf = KVVec::from_elem(0u8, 64 * 1024, GFP_KERNEL)?;
 
 | Allocator | Smart Pointer Type | Physical Layout | Best Used For |
 | :--- | :--- | :--- | :--- |
-| **`kmalloc`** | `KBox<T>`, `KVec<T>` | Physically & virtually contiguous | Small objects (< 128 KB), driver state structs |
+| **`kmalloc`** | `KBox<T>`, `KVec<T>` | Physically & virtually contiguous | Small objects (≲ 32 KiB / a few pages), driver state structs |
 | **`vmalloc`** | `VBox<T>`, `VVec<T>` | Virtually contiguous only | Very large memory buffers, dynamically sized tables |
 | **`kvmalloc`** | `KVBox<T>`, `KVVec<T>` | Tries contiguous, falls back to virtual | General allocations that may vary from small to large sizes |
 

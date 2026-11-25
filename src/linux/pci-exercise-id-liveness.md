@@ -40,7 +40,7 @@ You will build on top of your solution from the [Minimal DRM Driver](pci-exercis
 
 ## Userspace Test Program
 
-Save the following code as `test_edu.c` on your host machine:
+Save the following code as `~/learn-rust/test_edu.c` on your host machine:
 
 ```c
 #include <fcntl.h>
@@ -124,13 +124,13 @@ int main(int argc, char *argv[]) {
 
 ### Compiling and Running
 
-Compile the code statically on your host machine, transfer the binary to the VM, and run it:
+Compile the code statically on your host machine in `~/learn-rust` and run it via `/mnt` inside QEMU:
 
 ```bash
-# Compile statically on host:
+# Compile statically on the host, in ~/learn-rust:
 gcc -static -o test_edu test_edu.c
 
 # Run inside the VM (assuming your driver is loaded):
-./test_edu id
-./test_edu live 0x12345678
+/mnt/test_edu id
+/mnt/test_edu live 0x12345678
 ```

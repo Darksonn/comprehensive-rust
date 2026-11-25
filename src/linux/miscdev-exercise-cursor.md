@@ -15,7 +15,7 @@ A single flat `KVVec<u8>` loses message boundaries. Replace it with a list of di
 
 Store each write as a separate message instead of appending to one flat buffer, and give each open file its own read position. Each `read()` should return exactly one whole message (the next one that file has not yet read), and return EOF (`0`) once that file has read every message.
 
-**Help:** Check the documentation of [`KVec`](https://rust.docs.kernel.org/kernel/alloc/kvec/type.KVec.html) and [`IovIterDest::copy_to_iter`](https://rust.docs.kernel.org/kernel/iov/struct.IovIterDest.html#method.copy_to_iter).
+**Help:** Check the documentation of [`KVec`](https://rust.docs.kernel.org/kernel/alloc/kvec/type.KVec.html) and [`IovIterDest::copy_to_iter`](https://rust.docs.kernel.org/kernel/iov/struct.IovIterDest.html#method.copy_to_iter). Because `kiocb.file()` returns a shared reference (`Pin<&RustMessageBoardFile>`), a per-file cursor needs interior mutability such as a `#[pin] Mutex<usize>` initialized with `new_mutex!(0)` in `open()`.
 
 ## Testing in QEMU
 

@@ -251,7 +251,7 @@ impl PinnedDrop for RustMessageBoardFile {
 <details>
 
 - **Why track `base` instead of resetting everyone to `0`?** Open file descriptors cannot safely be mutated when another process runs `> /dev/rust-message-board`. Keeping a monotonically increasing logical sequence space (`base` + index) lets already-open live readers seamlessly pick up right where they left off without bounds underflow.
-- **Note on `fcntl(F_SETFL)`:** Reading `O_NONBLOCK` in `open()` handles `dd iflag=nonblock` and `open(..., O_NONBLOCK)` cleanly; a production driver can read `file.flags()` on each `read_iter()` call if it also wants to react to `fcntl(F_SETFL)` toggles after `open()`.
-- **Stretch improvement (`Arc<KVec<u8>>`):** Right now `read_iter()` holds `inner.lock()` across `iov.copy_to_iter(msg)`. Storing `KVec<Arc<KVec<u8>>>` lets you clone the `Arc`, `drop(inner)`, and copy to user space without holding the shared lock.
+- **Note on `fcntl(F_SETFL)`:** Reading `O_NONBLOCK` in `open()` handles `dd iflag=nonblock` and `open(..., O_NONBLOCK)` cleanly. It misses later `fcntl(F_SETFL)` toggles because `Kiocb` does not currently expose the underlying `File` (or `IOCB_NOWAIT`) in `read_iter()`. (Discussion: what would a safe `Kiocb` accessor returning `&LocalFile` look like?)
+- **Stretch improvement (`Arc<KVec<u8>>`):** Right now `read_iter()` holds `inner.lock()` across `iov.copy_to_iter(msg)` (see [Releasing Guards Early](mutex-guard-drop.md)). Storing `KVec<Arc<KVec<u8>>>` lets you clone the `Arc`, `drop(inner)`, and copy to user space without holding the shared lock.
 
 </details>

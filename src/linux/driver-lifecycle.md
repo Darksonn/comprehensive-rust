@@ -9,9 +9,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Driver Lifecycle
 
-1. **Device is probed** (`&Device<Core>`).
+1. **Device is probed** (`&Device<Core<'_>>`).
 2. **Device is bound** (`&Device<Bound>`).
-3. **Device unplug: `unbind()` runs** (driver data destructor runs).
+3. **Device unplug: `unbind()` runs**, then driver data is dropped.
 4. **Device unplug: `devm_*` / `Devres<T>` resources are freed.**
 5. **Device is fully unbound** (user space may still hold open fds!).
 6. **Device is freed** (once last `ARef<Device>` drops).

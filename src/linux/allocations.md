@@ -28,6 +28,6 @@ numbers.push(42, GFP_KERNEL)?;
 <details>
 
 - Discuss why the kernel requires explicit allocation flags (sleeping vs. non-sleeping contexts).
-- Emphasize that all kernel collections return `Result<_, AllocError>` and must use the `?` operator.
+- Emphasize that every allocating method on kernel collections returns `Result<_, AllocError>` (typically propagated with `?`, which converts to `ENOMEM`). Note that `KVec::new()` itself does not allocate.
 
 </details>

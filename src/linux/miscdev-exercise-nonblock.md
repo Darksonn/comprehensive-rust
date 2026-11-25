@@ -15,7 +15,7 @@ Now that `read_iter()` sleeps until a message is available, callers opening `/de
 
 When the device is opened with `O_NONBLOCK`, a `read()` that would otherwise sleep (because that file has already read every message) should fail immediately with `EAGAIN`. Blocking files should keep the behavior from Part 3.
 
-**Help:** Check the documentation of [`File::flags`](https://rust.docs.kernel.org/kernel/fs/file/struct.LocalFile.html#method.flags) and [`flags::O_NONBLOCK`](https://rust.docs.kernel.org/kernel/fs/file/flags/constant.O_NONBLOCK.html).
+**Help:** Check the documentation of [`File::flags`](https://rust.docs.kernel.org/kernel/fs/file/struct.LocalFile.html#method.flags) and [`flags::O_NONBLOCK`](https://rust.docs.kernel.org/kernel/fs/file/flags/constant.O_NONBLOCK.html). `read_iter()` does not have access to the `File`, so check `file.flags()` in `open()` and store the result in `RustMessageBoardFile`. Error codes such as `EAGAIN` are in the prelude.
 
 ## Testing in QEMU
 

@@ -55,3 +55,13 @@ pub(crate) fn my_numbers() -> Result<KVec<i32>> {
     Ok(numbers)
 }
 ```
+
+<details>
+
+- **Common pitfalls:**
+  - Forgetting `make LLVM=1 olddefconfig` after `./scripts/config --module CONFIG_RUST_ALICE` (the new symbol is not written cleanly into `.config` until `olddefconfig` runs).
+  - Adding `numbers.o` to `drivers/alice/Makefile` in Part 2—`rustc` compiles the whole crate from `rust_alice.rs` via `mod numbers;`, so only `rust_alice.o` belongs in the Makefile.
+  - Vermagic mismatch on `insmod` if `CONFIG_LOCALVERSION_AUTO` was left enabled; with it disabled (as in Setup), rebuilding a module does not require rebooting QEMU.
+- **When reviewing the solution:** Point out `depends on RUST` in `drivers/alice/Kconfig`—it won't block building here since `CONFIG_RUST=y` is already enabled, and `SAMPLE_RUST_MINIMAL` didn't need it directly because `menuconfig SAMPLES_RUST` wraps it in `depends on RUST`, but real drivers need it.
+
+</details>

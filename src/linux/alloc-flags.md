@@ -23,6 +23,7 @@ let packet = KBox::new(Packet::new(), GFP_ATOMIC)?;
 <details>
 
 - Emphasize the golden rule of Linux kernel programming: **Never sleep in atomic context.**
-- Using `GFP_KERNEL` inside an interrupt handler or while holding a spinlock triggers kernel warnings/panics (or lockdep/might_sleep assertions).
+- Using `GFP_KERNEL` inside an interrupt handler or while holding a spinlock triggers `BUG: sleeping function called from invalid context` (with `CONFIG_DEBUG_ATOMIC_SLEEP`) or deadlocks.
+- Mention that `spinlock.lock()` is covered shortly in Mutexes & Synchronization.
 
 </details>

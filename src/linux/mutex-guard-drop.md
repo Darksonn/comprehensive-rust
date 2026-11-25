@@ -34,7 +34,7 @@ fn get_value_scoped(&self, mut writer: UserSliceWriter) -> Result<isize> {
 
 <details>
 
-- **Minimizing critical sections:** Copying data to user space (`writer.write`) can page fault or sleep, so we want to release the lock first.
+- **Minimizing critical sections:** Sleeping under a `Mutex` is allowed, but releasing the lock before `writer.write` keeps the critical section short and avoids lock-ordering issues with `mmap_lock` if the user-space copy page-faults. (Copying to user space while holding a `SpinLock` is outright forbidden.)
 - **Two ways to release a guard early:**
   1. **Explicit unlock (`drop(guard)`):** Consumes the guard by value and unlocks the mutex immediately.
   2. **Lexical block scope (`{ ... }`):** The guard is dropped automatically at the closing brace of the inner block, returning just the copied `value`.

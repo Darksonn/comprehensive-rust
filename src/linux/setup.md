@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 Developing kernel code in Rust requires a Linux kernel build environment configured with Rust support (`CONFIG_RUST=y`).
 
-Because your host operating system's kernel version will rarely match our custom development kernel tree, we do not run `insmod` directly on the host machine. Instead, we test our code inside a **QEMU virtual machine** running a minimal Debian root filesystem (`debian.img`), with our host working directory shared into the VM via 9p/virtiofs.
+Because your host operating system's kernel version does not match our custom development kernel tree, we do not run `insmod` directly on the host machine. Instead, we test our code inside a **QEMU virtual machine** running a minimal Debian root filesystem (`debian.img`), with our host working directory shared into the VM via 9p.
 
 ## 0. Host Prerequisites
 
@@ -62,6 +62,8 @@ cd ~/learn-rust/linux && git fetch origin && git reset --hard origin/rfl-course-
 ```
 
 To build a reusable Debian Bookworm disk image with `build-essential` (`gcc`, `make`) pre-installed and automatic 9p workspace mounting, save the following script as `create-image.sh` in your workspace directory (`~/learn-rust`) and run it:
+
+<!-- mdbook-xgettext: skip -->
 
 ```bash
 #!/usr/bin/env bash
@@ -139,8 +141,10 @@ make LLVM=1 rustavailable
 make LLVM=1 x86_64_defconfig
 make LLVM=1 kvm_guest.config
 
-# Enable Rust for Linux, DRM, and the course sample drivers:
+# Keep module vermagic stable across local edits:
 ./scripts/config --disable CONFIG_LOCALVERSION_AUTO
+
+# Enable Rust for Linux, DRM, and the course sample drivers:
 ./scripts/config --enable CONFIG_RUST
 ./scripts/config --enable CONFIG_DRM
 ./scripts/config --enable CONFIG_SAMPLES
@@ -219,7 +223,9 @@ poweroff
 <details>
 
 - **Workspace Layout:** Keeping `debian.img`, `create-image.sh`, and C test programs in the parent directory (`~/learn-rust`) ensures that `git status` inside `linux/` remains clean.
-- **Why `q35,acpi=on` and `acpi=force`?** Passing these ACPI flags to QEMU and the kernel boot command line ensures that `poweroff` triggers ACPI sleep state S5 (`reboot: Power down`), cleanly exiting QEMU without hanging.
+- **First Build Timing:** The initial toolchain download, `debootstrap`, and cold kernel build can take 20–45 minutes depending on laptop speed and network. Subsequent module-only rebuilds (`make LLVM=1 samples/rust/...ko`) take only a few seconds.
+- **Why disable `CONFIG_LOCALVERSION_AUTO`?** Without it, editing a file marks the tree `-dirty` and changes the module vermagic, which would require rebuilding `bzImage` and rebooting QEMU before `insmod` accepts the new `.ko`.
+- **Why `q35,acpi=on` and `acpi=force`?** Passing these ACPI flags to QEMU and the kernel boot command line ensures that `poweroff` triggers ACPI sleep state S5 (`reboot: Power down`), cleanly exiting QEMU without hanging. If QEMU ever hangs, press <kbd>Ctrl</kbd> + <kbd>A</kbd> then <kbd>X</kbd> to terminate it.
 - **Automatic `/mnt` Mounting:** Because `/etc/fstab` maps `hostshare` to `/mnt`, both `/mnt/linux` and userspace test binaries in `/mnt/` are immediately accessible upon login.
 
 </details>

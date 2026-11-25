@@ -46,6 +46,7 @@ In this exercise, you will inspect the starter PCI DRM driver for the QEMU `edu`
      ```
    - *Tip:* For subsequent exercises, you can keep QEMU running, re-run `make LLVM=1 samples/rust/rust_driver_pci_edu_drm.ko` on the host, and reload the module in the VM with `rmmod rust_driver_pci_edu_drm && insmod /mnt/linux/samples/rust/rust_driver_pci_edu_drm.ko`.
 4. **Test with Userspace `test_ioctl.c`:**
+   Save the following program as `~/learn-rust/test_ioctl.c` on the **host** (the minimal VM image does not include `<drm/drm.h>`):
 
 ```c
 #include <fcntl.h>
@@ -82,6 +83,9 @@ int main() {
 ```
 
 ```bash
+# On the host, in ~/learn-rust:
 gcc -static -o test_ioctl test_ioctl.c
-./test_ioctl
+
+# Inside QEMU:
+/mnt/test_ioctl
 ```

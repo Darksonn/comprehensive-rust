@@ -93,9 +93,10 @@ config SAMPLE_RUST_MINIMAL
 <details>
 
 - Things to discuss:
-  - Only one `module!` macro per driver.
-  - Meaning of `tristate` and loading/unloading drivers.
+  - Only one `module!` macro per crate (`.ko`).
+  - Meaning of `tristate` and loading/unloading drivers, plus `cfg!(MODULE)` (`!cfg!(MODULE)` is `false` when built as `=m`).
+  - `params:` declares module parameters; demo `insmod /mnt/linux/samples/rust/rust_minimal.ko test_parameter=5` and inspect `dmesg`.
   - Kconfig and Makefile are separate systems.
-  - The Makefile corresponds to invocations to `rustc`. Sub-modules are included via `mod` statements.
+  - The Makefile corresponds to invocations to `rustc`. Sub-modules are included via `mod` statements rather than listed as `.o` entries.
 
 </details>

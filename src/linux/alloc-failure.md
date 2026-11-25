@@ -27,7 +27,7 @@ fn my_numbers() -> Result<KVec<i32>> {
 <details>
 
 - Contrast user-space OOM handling (abort/panic) with kernel-space requirement to return `-ENOMEM`.
-- Try removing the use `?` and see the compilation error.
+- Try removing the `?` and see the compilation error.
 - Mention `KVec::reserve` for pre-allocating capacity before critical sections.
 
 </details>

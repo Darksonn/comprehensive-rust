@@ -14,8 +14,8 @@ SPDX-License-Identifier: CC-BY-4.0
    - Match hardware via ID tables (`probe` / `remove`).
 
 2. **Class Devices (User-Space-Facing):**
-   - `miscdevice`, `drm`, `block`, `net::phy`, (`pwm`, `hid`)
-   - Expose interfaces to user space (`/dev/dri/*`, `/dev/input/*`, etc.).
+   - `miscdevice`, `drm`, `block`, `net::phy`, (`pwm`)
+   - Expose interfaces to user space (`/dev/dri/*`, `/dev/<misc>`, etc.).
 
 <details>
 

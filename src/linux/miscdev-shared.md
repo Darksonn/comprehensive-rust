@@ -57,7 +57,7 @@ impl MiscDevice for RustMessageBoard {
 <details>
 
 - **Live-code / walk through this transformation together on [`samples/rust/rust_misc_device.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/samples/rust/rust_misc_device.rs):**
-  1. In `init()`, allocate `let shared = Arc::pin_init(try_pin_init!(SharedState { ... }), GFP_KERNEL)?;` and pass `try_pin_init!(RustMiscDevice { shared })` to `MiscDeviceRegistration::register`.
+  1. In `init()`, allocate `let shared = Arc::pin_init(try_pin_init!(SharedState { ... }), GFP_KERNEL)?;` and pass `try_pin_init!(RustMiscDevice { shared })` (renamed to `RustMessageBoard` on the slide) to `MiscDeviceRegistration::register`.
   2. Why `Arc<SharedState>` instead of borrowing `&RustMessageBoard` directly in `RustMessageBoardFile`? Because open files can outlive the registration: unregistering a `miscdevice` (e.g. on `rmmod`) only stops *new* `open()` calls, while already-open file descriptors stay valid until user space closes them. The `'static` bound on `MiscDevice::File` is just how the Rust type system encodes this fact.
   3. Point out that this completed shared-buffer starting point is also available in the repository at [`samples/rust/rust_message_board.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/samples/rust/rust_message_board.rs) (exposing `/dev/rust-message-board`).
 - **Module boilerplate in the starter (mention only as needed):**

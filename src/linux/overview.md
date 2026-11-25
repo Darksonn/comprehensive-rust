@@ -24,7 +24,7 @@ The architecture separates unsafe C FFI boundaries from safe kernel module code:
 2. **Unsafe Bindings & Helpers (`kernel::bindings`):**  
    `bindgen` generates low-level Rust FFI calls from C headers (`bindings_helper.h`), while `rust/helpers/` wraps static inline C functions and macros. Calling these bindings is `unsafe`.
 3. **Safe Abstractions (`kernel` crate):**  
-   The core `kernel` crate wraps the unsafe C FFI in idiomatic, safe Rust types (`ARef`, `KBox`, `Mutex`, `pin-init`, and driver traits). Every `unsafe` block inside the `kernel` crate must document its safety preconditions.
+   The core `kernel` crate wraps the unsafe C FFI in idiomatic, safe Rust types (`ARef`, `KBox`, `Mutex`, `pin-init`, and driver traits). Every `unsafe fn` documents its preconditions in a `# Safety` section, and every `unsafe` block carries a `// SAFETY:` comment justifying why they hold.
 4. **Safe Rust Drivers:**  
    Kernel modules and drivers are written against the safe `kernel` crate abstractions, allowing developers to write robust kernel code that avoids `unsafe`.
 
@@ -32,5 +32,6 @@ The architecture separates unsafe C FFI boundaries from safe kernel module code:
 
 - Walk students through `safeunsafe.svg`, highlighting the boundary between safe driver code and the unsafe C FFI wrapping layer.
 - Emphasize that module authors primarily interact with the safe `kernel` crate, relying on the type system and borrow checker to enforce kernel invariants at compile time.
+- Ask: if safe driver code causes a Use-After-Free, where is the bug? (In the `kernel` abstraction's `unsafe` code, not the driver.)
 
 </details>

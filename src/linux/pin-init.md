@@ -41,8 +41,8 @@ impl SmallString {
         if s.len() > 8 {
             result.ptr = /* allocate and copy memory */;
         } else {
-            result.data.copy_from_slice(s.as_bytes());
-            result.ptr = &raw const result.data;
+            result.data[..s.len()].copy_from_slice(s.as_bytes());
+            result.ptr = result.data.as_ptr();
         }
 
         // Returning `result` here changes the address of `data`.
@@ -57,6 +57,8 @@ impl SmallString {
 
 <details>
 
-- Analogy: Talk about move constructors in C++, which do not exist in Rust. 
+- Ask: what does `return result` do in memory? (A bitwise `memcpy` to the caller's stack frame, leaving `ptr` pointing at the old stack address shown in the diagram.)
+- Analogy: Talk about move constructors in C++, which do not exist in Rust—every move in Rust is a trivial bitwise copy.
+- Preview: `Pin<P>` promises the value will never move again, so we need a way to construct values directly in their final location.
 
 </details>

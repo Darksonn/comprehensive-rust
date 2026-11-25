@@ -108,6 +108,7 @@ insmod /mnt/linux/samples/rust/rust_misc_device.ko
   - `RustMiscDevice` (implementing `MiscDevice`) is stored inside `MiscDeviceRegistration<RustMiscDevice>` and passed to `open()` via `misc: &MiscDeviceRegistration<Self>` (which derefs to `&RustMiscDevice`).
   - `Self::File` (`Pin<KBox<RustMiscDeviceFile>>`) is returned by `open()` and stored in `file->private_data`.
 - For subsequent `read_iter`, `write_iter`, and `ioctl` operations, the kernel passes `Self::File` (borrowed via `kiocb.file()`) back to the driver methods.
+- In `read_iter()`, `iov.simple_read_from_buffer(kiocb.ki_pos_mut(), &inner.buffer)` reads starting at `*ki_pos` and advances `*ki_pos` (returning `0` at EOF once `*ki_pos` reaches `buffer.len()`).
 - `echo hello > /dev/rust-misc-device` followed by `cat /dev/rust-misc-device` prints nothing: each command opens a fresh file descriptor with its own empty buffer. That is why we need a small C program that writes and reads on the same descriptor.
 - Point out that per-file state isolation is fine for simple echo devices, but IPC drivers (like Binder) require state that is shared across processes.
 
