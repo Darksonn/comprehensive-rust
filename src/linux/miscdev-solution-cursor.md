@@ -9,11 +9,95 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Solution: Part 2 — Discrete Messages & Per-File Cursor
 
+<p align="center">
+  <img src="miscdev-solution-cursor.svg" alt="Shared SharedState holds a list of messages; each open file has its own cursor into it." />
+</p>
+
+Changes compared to Part 1:
+
+```diff
+@@ -35,7 +35,7 @@
+             let shared = Arc::pin_init(
+                 try_pin_init!(SharedState {
+                     inner <- new_mutex!(Inner {
+-                        buffer: KVVec::new(),
++                        messages: KVec::new(),
+                     }),
+                 }),
+                 GFP_KERNEL,
+@@ -60,7 +60,7 @@
+ }
+ 
+ struct Inner {
+-    buffer: KVVec<u8>,
++    messages: KVec<KVec<u8>>,
+ }
+ 
+ #[pin_data]
+@@ -80,6 +80,8 @@
+ struct RustMessageBoardFile {
+     shared: Arc<SharedState>,
+     dev: ARef<Device>,
++    #[pin]
++    cursor: Mutex<usize>,
+ }
+ 
+ #[vtable]
+@@ -95,25 +97,40 @@
+             try_pin_init!(RustMessageBoardFile {
+                 shared: Arc::clone(&misc.shared),
+                 dev,
++                cursor <- new_mutex!(0),
+             }),
+             GFP_KERNEL,
+         )
+     }
+ 
+-    fn read_iter(mut kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterDest<'_>) -> Result<usize> {
++    fn read_iter(kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterDest<'_>) -> Result<usize> {
+         let me = kiocb.file();
+ 
++        let mut cursor = me.cursor.lock();
+         let inner = me.shared.inner.lock();
+-        let read = iov.simple_read_from_buffer(kiocb.ki_pos_mut(), &inner.buffer)?;
+-
+-        Ok(read)
++        if *cursor >= inner.messages.len() {
++            return Ok(0);
++        }
++
++        let written = iov.copy_to_iter(&inner.messages[*cursor]);
++        *cursor += 1;
++        Ok(written)
+     }
+ 
+     fn write_iter(kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterSource<'_>) -> Result<usize> {
++        if iov.is_empty() {
++            return Ok(0);
++        }
++
+         let me = kiocb.file();
++        let mut msg = KVec::new();
++        let len = iov.copy_from_iter_vec(&mut msg, GFP_KERNEL)?;
++        if len == 0 {
++            return Ok(0);
++        }
+ 
+         let mut inner = me.shared.inner.lock();
+-        let len = iov.copy_from_iter_vec(&mut inner.buffer, GFP_KERNEL)?;
++        inner.messages.push(msg, GFP_KERNEL)?;
+ 
+         Ok(len)
+     }
+```
+
+Complete solution:
+
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
 #![allow(unused_variables, unused_imports, dead_code)]
 
-//! Rust message board character device (Milestone 2: discrete messages & cursor).
+//! Rust message board character device.
 
 use kernel::{
     device::Device,
@@ -42,7 +126,7 @@ struct RustMessageBoardModule {
 impl kernel::InPlaceModule for RustMessageBoardModule {
     fn init(_module: &'static ThisModule) -> impl PinInit<Self, Error> {
         pin_init::pin_init_scope(move || {
-            pr_info!("Initializing Rust Message Board\n");
+            pr_info!("Initialising Rust Message Board\n");
 
             let shared = Arc::pin_init(
                 try_pin_init!(SharedState {
@@ -81,11 +165,13 @@ struct SharedState {
     inner: Mutex<Inner>,
 }
 
+/// Data shared by all open files for the same instance of this miscdevice.
 #[pin_data]
 struct RustMessageBoard {
     shared: Arc<SharedState>,
 }
 
+/// Data that is stored per file for this miscdevice.
 #[pin_data(PinnedDrop)]
 struct RustMessageBoardFile {
     shared: Arc<SharedState>,
@@ -100,6 +186,8 @@ impl MiscDevice for RustMessageBoard {
 
     fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
         let dev = ARef::from(misc.device());
+
+        dev_info!(dev, "Opening Rust Message Board\n");
 
         KBox::try_pin_init(
             try_pin_init!(RustMessageBoardFile {

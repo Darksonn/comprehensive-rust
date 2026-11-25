@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 505" width="100%" height="100%">
+  <defs>
+    <style>
+      .title { font-family: sans-serif; font-size: 15px; font-weight: bold; fill: #0f172a; text-anchor: middle; }
+      .addr-label { font-family: monospace; font-size: 12px; fill: #64748b; }
+      .field-title { font-family: monospace; font-size: 13px; font-weight: bold; fill: #1e293b; }
+      .field-val { font-family: monospace; font-size: 12px; fill: #334155; }
+      .annot { font-family: sans-serif; font-size: 13px; fill: #64748b; font-weight: bold; text-anchor: middle; }
+      .box-struct { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; rx: 6; }
+      .box-field { fill: #eff6ff; stroke: #3b82f6; stroke-width: 1.5; rx: 4; }
+      .box-field-data { fill: #f0fdf4; stroke: #10b981; stroke-width: 1.5; rx: 4; }
+    </style>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#3b82f6" />
+    </marker>
+  </defs>
+
+  <!-- ===================== Left Column: per-file state ===================== -->
+  <text x="220" y="30" class="title">1. Before: per-file state</text>
+
+  <!-- Registration -->
+  <rect x="30" y="50" width="380" height="70" class="box-struct" />
+  <text x="45" y="70" class="field-title">MiscDeviceRegistration&lt;RustMiscDevice&gt;</text>
+  <rect x="45" y="80" width="350" height="30" class="box-field" />
+  <text x="58" y="100" class="field-val">RustMiscDevice {}  (empty)</text>
+
+  <!-- Open file A -->
+  <rect x="30" y="135" width="380" height="152" class="box-struct" />
+  <text x="45" y="153" class="addr-label">open file A</text>
+  <text x="45" y="171" class="field-title">KBox&lt;RustMiscDeviceFile&gt;</text>
+  <rect x="45" y="181" width="350" height="62" class="box-field" />
+  <text x="58" y="199" class="field-title">inner: Mutex&lt;Inner&gt;</text>
+  <rect x="60" y="207" width="320" height="28" class="box-field-data" />
+  <text x="72" y="226" class="field-val">Inner { value: i32, buffer: KVVec&lt;u8&gt; }</text>
+  <rect x="45" y="251" width="350" height="26" class="box-field" />
+  <text x="58" y="269" class="field-val">dev: ARef&lt;Device&gt;</text>
+
+  <!-- Open file B -->
+  <rect x="30" y="300" width="380" height="152" class="box-struct" />
+  <text x="45" y="318" class="addr-label">open file B</text>
+  <text x="45" y="336" class="field-title">KBox&lt;RustMiscDeviceFile&gt;</text>
+  <rect x="45" y="346" width="350" height="62" class="box-field" />
+  <text x="58" y="364" class="field-title">inner: Mutex&lt;Inner&gt;</text>
+  <rect x="60" y="372" width="320" height="28" class="box-field-data" />
+  <text x="72" y="391" class="field-val">Inner { value: i32, buffer: KVVec&lt;u8&gt; }</text>
+  <rect x="45" y="416" width="350" height="26" class="box-field" />
+  <text x="58" y="434" class="field-val">dev: ARef&lt;Device&gt;</text>
+
+  <text x="220" y="480" class="annot">Each open file has its own Inner: nothing is shared.</text>
+
+  <!-- ===================== Right Column: shared state ===================== -->
+  <text x="677" y="30" class="title">2. After: shared state</text>
+
+  <!-- Registration -->
+  <rect x="450" y="50" width="455" height="90" class="box-struct" />
+  <text x="465" y="70" class="field-title">MiscDeviceRegistration&lt;RustMessageBoard&gt;</text>
+  <rect x="465" y="80" width="425" height="50" class="box-struct" />
+  <text x="478" y="110" class="field-title">RustMessageBoard</text>
+  <rect x="685" y="90" width="195" height="30" class="box-field" />
+  <text x="695" y="110" class="field-val">shared: Arc&lt;SharedState&gt;</text>
+
+  <!-- Open file A -->
+  <rect x="450" y="160" width="215" height="110" class="box-struct" />
+  <text x="462" y="178" class="addr-label">open file A</text>
+  <text x="462" y="194" class="field-val">KBox&lt;RustMessageBoardFile&gt;</text>
+  <rect x="462" y="204" width="191" height="24" class="box-field" />
+  <text x="472" y="221" class="field-val">shared: Arc&lt;SharedState&gt;</text>
+  <rect x="462" y="236" width="191" height="24" class="box-field" />
+  <text x="472" y="253" class="field-val">dev: ARef&lt;Device&gt;</text>
+
+  <!-- Open file B -->
+  <rect x="450" y="320" width="215" height="110" class="box-struct" />
+  <text x="462" y="338" class="addr-label">open file B</text>
+  <text x="462" y="354" class="field-val">KBox&lt;RustMessageBoardFile&gt;</text>
+  <rect x="462" y="364" width="191" height="24" class="box-field" />
+  <text x="472" y="381" class="field-val">shared: Arc&lt;SharedState&gt;</text>
+  <rect x="462" y="396" width="191" height="24" class="box-field" />
+  <text x="472" y="413" class="field-val">dev: ARef&lt;Device&gt;</text>
+
+  <!-- SharedState (single heap allocation) -->
+  <rect x="695" y="200" width="210" height="190" class="box-struct" />
+  <text x="707" y="220" class="field-title">SharedState</text>
+  <text x="707" y="237" class="addr-label">(refcounted heap alloc)</text>
+  <rect x="707" y="248" width="186" height="130" class="box-field" />
+  <text x="719" y="268" class="field-title">inner: Mutex&lt;Inner&gt;</text>
+  <rect x="719" y="278" width="162" height="88" class="box-field-data" />
+  <text x="731" y="302" class="field-val">Inner {</text>
+  <text x="743" y="324" class="field-val">buffer: KVVec&lt;u8&gt;</text>
+  <text x="731" y="346" class="field-val">}</text>
+
+  <!-- Arc pointer arrows -->
+  <path d="M 782 120 L 782 196" fill="none" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrow-blue)" />
+  <path d="M 653 216 C 675 216, 670 245, 691 245" fill="none" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrow-blue)" />
+  <path d="M 653 376 C 675 376, 670 345, 691 345" fill="none" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrow-blue)" />
+
+  <text x="677" y="470" class="annot">All three Arcs point to the same SharedState;</text>
+  <text x="677" y="489" class="annot">it is freed when the last one is dropped.</text>
+</svg>

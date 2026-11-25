@@ -11,26 +11,16 @@ SPDX-License-Identifier: CC-BY-4.0
 
 In a shell, `>>` opens a file without `O_TRUNC` (append), whereas `>` passes `flags::O_TRUNC` to `open()`. Make `>` clear old messages without breaking already-open live readers!
 
-## Tasks
+## Task
 
-1. **Track Cleared Messages:** Add `base: usize` (initialized to `0`) to `Inner` to record how many older messages have been discarded.
-2. **Clear on `O_TRUNC` in `open()`:**
-   ```rust,ignore
-   if (file.flags() & flags::O_TRUNC) != 0 {
-       let mut inner = misc.shared.inner.lock();
-       inner.base += inner.messages.len();
-       inner.messages.clear();
-   }
-   ```
-3. **Adjust Indexing in `read_iter()`:**
-   - Replace the `while` loop with a `loop` that clamps `*cursor = (*cursor).max(inner.base);`.
-   - When `*cursor < inner.base + inner.messages.len()`, `break` and copy `&inner.messages[*cursor - inner.base]`.
-   - Otherwise check `me.nonblock` (`Err(EAGAIN)`) and wait on `me.shared.condvar`.
+Opening the device with `O_TRUNC` (shell `>`) should discard all existing messages, so that new readers only see messages posted afterwards. Files that were already open, including live readers sleeping in `read()`, must keep working and continue to receive new messages.
+
+**Help:** Check the documentation of [`flags::O_TRUNC`](https://rust.docs.kernel.org/kernel/fs/file/flags/constant.O_TRUNC.html). Think about what happens to an existing file's position when the messages before it are removed.
 
 ## Testing in QEMU
 
 ```bash
-rmmod rust_message_board && insmod /mnt/linux/samples/rust/rust_message_board.ko
+rmmod rust_message_board 2>/dev/null; insmod /mnt/linux/samples/rust/rust_message_board.ko
 cat /dev/rust-message-board &
 echo "old 1" >> /dev/rust-message-board
 echo "fresh start" > /dev/rust-message-board

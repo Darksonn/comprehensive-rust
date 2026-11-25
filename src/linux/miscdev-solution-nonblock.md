@@ -9,11 +9,54 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Solution: Part 4 — Non-Blocking Reads (`O_NONBLOCK`)
 
+Changes compared to Part 3:
+
+```diff
+@@ -85,14 +85,16 @@
+     dev: ARef<Device>,
+     #[pin]
+     cursor: Mutex<usize>,
++    nonblock: bool,
+ }
+ 
+ #[vtable]
+ impl MiscDevice for RustMessageBoard {
+     type File = Pin<KBox<RustMessageBoardFile>>;
+ 
+-    fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
++    fn open(file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
+         let dev = ARef::from(misc.device());
++        let nonblock = (file.flags() & flags::O_NONBLOCK) != 0;
+ 
+         dev_info!(dev, "Opening Rust Message Board\n");
+ 
+@@ -101,6 +103,7 @@
+                 shared: Arc::clone(&misc.shared),
+                 dev,
+                 cursor <- new_mutex!(0),
++                nonblock,
+             }),
+             GFP_KERNEL,
+         )
+@@ -112,6 +115,9 @@
+         let mut cursor = me.cursor.lock();
+         let mut inner = me.shared.inner.lock();
+         while *cursor >= inner.messages.len() {
++            if me.nonblock {
++                return Err(EAGAIN);
++            }
+             if me.shared.condvar.wait_interruptible(&mut inner) {
+                 return Err(ERESTARTSYS);
+             }
+```
+
+Complete solution:
+
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
 #![allow(unused_variables, unused_imports, dead_code)]
 
-//! Rust message board character device (Milestone 4: O_NONBLOCK).
+//! Rust message board character device.
 
 use kernel::{
     device::Device,
@@ -42,7 +85,7 @@ struct RustMessageBoardModule {
 impl kernel::InPlaceModule for RustMessageBoardModule {
     fn init(_module: &'static ThisModule) -> impl PinInit<Self, Error> {
         pin_init::pin_init_scope(move || {
-            pr_info!("Initializing Rust Message Board\n");
+            pr_info!("Initialising Rust Message Board\n");
 
             let shared = Arc::pin_init(
                 try_pin_init!(SharedState {
@@ -84,11 +127,13 @@ struct SharedState {
     condvar: CondVar,
 }
 
+/// Data shared by all open files for the same instance of this miscdevice.
 #[pin_data]
 struct RustMessageBoard {
     shared: Arc<SharedState>,
 }
 
+/// Data that is stored per file for this miscdevice.
 #[pin_data(PinnedDrop)]
 struct RustMessageBoardFile {
     shared: Arc<SharedState>,
@@ -105,6 +150,8 @@ impl MiscDevice for RustMessageBoard {
     fn open(file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
         let dev = ARef::from(misc.device());
         let nonblock = (file.flags() & flags::O_NONBLOCK) != 0;
+
+        dev_info!(dev, "Opening Rust Message Board\n");
 
         KBox::try_pin_init(
             try_pin_init!(RustMessageBoardFile {

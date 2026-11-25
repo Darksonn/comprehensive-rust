@@ -17,8 +17,13 @@ struct Inner {
     buffer: KVVec<u8>,
 }
 
+/// Data shared by all open files for the same miscdevice.
 #[pin_data]
-struct RustMiscDevice {
+struct RustMiscDevice {}
+
+/// Data stored per open file.
+#[pin_data]
+struct RustMiscDeviceFile {
     #[pin]
     inner: Mutex<Inner>,
     dev: ARef<Device>,
@@ -26,16 +31,16 @@ struct RustMiscDevice {
 
 #[vtable]
 impl MiscDevice for RustMiscDevice {
-    type Ptr = Pin<KBox<Self>>;
+    type File = Pin<KBox<RustMiscDeviceFile>>;
 
-    fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Pin<KBox<Self>>> {
+    fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
         let dev = ARef::from(misc.device());
 
         dev_info!(dev, "Opening Rust Misc Device Sample\n");
 
         KBox::try_pin_init(
             try_pin_init! {
-                RustMiscDevice {
+                RustMiscDeviceFile {
                     inner <- new_mutex!(Inner {
                         value: 0_i32,
                         buffer: KVVec::new(),
@@ -53,5 +58,7 @@ impl MiscDevice for RustMiscDevice {
 
 - Highlight how `<-` distinguishes in-place initialization from normal field assignment (`:`).
 - Explain importance of `#[pin]` and `#[pin_data]` in struct initialization.
+- `open` returns `Self::File` (here `Pin<KBox<RustMiscDeviceFile>>`): each open file gets its own pinned, heap-allocated `RustMiscDeviceFile`, while `RustMiscDevice` holds data shared by all open files (empty here).
+- `KBox::try_pin_init` allocates first and then runs the initializer directly in the heap memory, so the `Mutex` is never moved after `mutex_init`.
 
 </details>

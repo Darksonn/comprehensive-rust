@@ -19,7 +19,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 <details>
 
-- A driver is rarely *just* a "bus device" or *just* a "class device"—most hardware drivers implement both!
+- Most hardware drivers are not *either* a bus device driver *or* a class device driver: they act as the glue between a bus device (the hardware) and a class device (the user-space interface).
+- The driver is usually instantiated by the bus device, and the class device is usually instantiated by the driver.
 - During `probe()` on the bus device (e.g. `pci::Driver::probe`), the driver initializes hardware resources (BARs, IRQs) and registers a class device (e.g. `drm::Registration` or `MiscDeviceRegistration`) so user space can interact with it.
 - Also mention pure data-manipulation modules (such as the DRM panic QR code generator) that don't bind to a bus or class device at all.
 

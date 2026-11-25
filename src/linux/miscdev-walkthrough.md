@@ -64,12 +64,51 @@ In this default sample, `RustMiscDevice` is empty and `open()` allocates a **new
 - If Process A and Process B both open `/dev/rust-misc-device`, they each have their own isolated buffer.
 - Data written by Process A is not visible to Process B.
 
+To see this in action, use a single file descriptor for both the write and the read:
+
+```c
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+    char buf[64];
+    int a = open("/dev/rust-misc-device", O_RDWR);
+    if (a < 0) { perror("open a"); return 1; }
+    if (write(a, "hello\n", 6) != 6) { perror("write a"); return 1; }
+    /* write_iter resets the file position to 0, so read straight back. */
+    ssize_t n = read(a, buf, sizeof(buf));
+    if (n < 0) { perror("read a"); return 1; }
+    printf("fd a: read %zd bytes: %.*s", n, (int)n, buf);
+
+    int b = open("/dev/rust-misc-device", O_RDWR);
+    if (b < 0) { perror("open b"); return 1; }
+    n = read(b, buf, sizeof(buf));
+    if (n < 0) { perror("read b"); return 1; }
+    printf("fd b: read %zd bytes\n", n);
+
+    close(a);
+    close(b);
+    return 0;
+}
+```
+
+```bash
+gcc -static -o test_misc test_misc.c   # on the host, in ~/learn-rust
+# Inside QEMU:
+insmod /mnt/linux/samples/rust/rust_misc_device.ko
+/mnt/test_misc
+# fd a: read 6 bytes: hello
+# fd b: read 0 bytes
+```
+
 <details>
 
 - Walk through the two structs in `rust_misc_device.rs`:
   - `RustMiscDevice` (implementing `MiscDevice`) is stored inside `MiscDeviceRegistration<RustMiscDevice>` and passed to `open()` via `misc: &MiscDeviceRegistration<Self>` (which derefs to `&RustMiscDevice`).
   - `Self::File` (`Pin<KBox<RustMiscDeviceFile>>`) is returned by `open()` and stored in `file->private_data`.
 - For subsequent `read_iter`, `write_iter`, and `ioctl` operations, the kernel passes `Self::File` (borrowed via `kiocb.file()`) back to the driver methods.
+- `echo hello > /dev/rust-misc-device` followed by `cat /dev/rust-misc-device` prints nothing: each command opens a fresh file descriptor with its own empty buffer. That is why we need a small C program that writes and reads on the same descriptor.
 - Point out that per-file state isolation is fine for simple echo devices, but IPC drivers (like Binder) require state that is shared across processes.
 
 </details>

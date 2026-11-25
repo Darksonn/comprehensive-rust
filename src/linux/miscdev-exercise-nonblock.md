@@ -11,20 +11,16 @@ SPDX-License-Identifier: CC-BY-4.0
 
 Now that `read_iter()` sleeps until a message is available, callers opening `/dev/rust-message-board` with `O_NONBLOCK` expect `EAGAIN` instead of blocking when no unread messages exist.
 
-## Tasks
+## Task
 
-1. **Store the Flag Per Open File:** Add `nonblock: bool` to `RustMessageBoardFile`.
-2. **Inspect Open Flags in `open()`:** Use `file.flags()` and `flags::O_NONBLOCK`:
-   ```rust,ignore
-   let nonblock = (file.flags() & flags::O_NONBLOCK) != 0;
-   ```
-   Pass `nonblock` into `RustMessageBoardFile` (and rename `_file` to `file`).
-3. **Return `EAGAIN` in `read_iter()`:** Inside the `while *cursor >= inner.messages.len()` loop, check `if me.nonblock { return Err(EAGAIN); }` before calling `wait_interruptible`.
+When the device is opened with `O_NONBLOCK`, a `read()` that would otherwise sleep (because that file has already read every message) should fail immediately with `EAGAIN`. Blocking files should keep the behavior from Part 3.
+
+**Help:** Check the documentation of [`File::flags`](https://rust.docs.kernel.org/kernel/fs/file/struct.LocalFile.html#method.flags) and [`flags::O_NONBLOCK`](https://rust.docs.kernel.org/kernel/fs/file/flags/constant.O_NONBLOCK.html).
 
 ## Testing in QEMU
 
 ```bash
-rmmod rust_message_board && insmod /mnt/linux/samples/rust/rust_message_board.ko
+rmmod rust_message_board 2>/dev/null; insmod /mnt/linux/samples/rust/rust_message_board.ko
 echo "queued message" >> /dev/rust-message-board
 
 # Drain existing messages without blocking:

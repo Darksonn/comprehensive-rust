@@ -17,19 +17,24 @@ struct Inner {
     buffer: KVVec<u8>,
 }
 
-struct RustMiscDevice {
+struct RustMiscDeviceFile {
     inner: Mutex<Inner>,
     dev: ARef<Device>,
 }
 ```
 
+Equivalent code in C:
+
 ```c
-struct rust_misc_device {
+struct rust_misc_device_file {
+    struct mutex inner;
+    /* Protected by `inner`: */
     int value;
     char *buffer;
     size_t buffer_len;
     size_t buffer_cap;
-    struct mutex inner;
+
+    /* Not protected by `inner`: */
     struct device *dev;
 };
 ```

@@ -13,6 +13,17 @@ Developing kernel code in Rust requires a Linux kernel build environment configu
 
 Because your host operating system's kernel version will rarely match our custom development kernel tree, we do not run `insmod` directly on the host machine. Instead, we test our code inside a **QEMU virtual machine** running a minimal Debian root filesystem (`debian.img`), with our host working directory shared into the VM via 9p/virtiofs.
 
+## 0. Host Prerequisites
+
+You need a Linux x86-64 host with KVM enabled (`/dev/kvm` must be accessible to
+your user). On Debian/Ubuntu, install the build and VM dependencies:
+
+<!-- mdbook-xgettext: skip -->
+
+```bash
+sudo apt install build-essential flex bison bc libelf-dev libssl-dev cpio python3 qemu-system-x86 debootstrap curl git
+```
+
 ## 1. Downloading & Setting Up the Toolchain
 
 To ensure compatibility without conflicting with host package managers, download the prebuilt, kernel-tested LLVM and Rust toolchain tarball from `kernel.org`:
@@ -21,12 +32,12 @@ To ensure compatibility without conflicting with host package managers, download
 
 ```bash
 # Download and extract the prebuilt LLVM + Rust toolchain:
-curl -O https://mirrors.edge.kernel.org/pub/tools/llvm/rust/files/llvm-22.1.6-rust-1.97.0-x86_64.tar.xz
-sha256sum llvm-22.1.6-rust-1.97.0-x86_64.tar.xz
-tar xvf llvm-22.1.6-rust-1.97.0-x86_64.tar.xz
+curl -O https://mirrors.edge.kernel.org/pub/tools/llvm/rust/files/llvm-23.1.6-rust-1.100.0-x86_64.tar.xz
+echo "e9a19b6527db9fba0d5ba1382b09bcc7eb936db59adfa546f14fe77b5aa6eb87  llvm-23.1.6-rust-1.100.0-x86_64.tar.xz" | sha256sum -c
+tar xvf llvm-23.1.6-rust-1.100.0-x86_64.tar.xz
 
 # Add the toolchain binaries and libclang to your environment:
-llvm_prefix=$(realpath llvm-22.1.6-rust-1.97.0-x86_64)
+llvm_prefix=$(realpath llvm-23.1.6-rust-1.100.0-x86_64)
 export PATH=$llvm_prefix/bin:$PATH
 export LIBCLANG_PATH=$llvm_prefix/lib/libclang.so
 cargo install --force --locked --root $llvm_prefix bindgen-cli --version 0.72.1

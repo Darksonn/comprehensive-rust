@@ -9,10 +9,74 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Solution: Part 5 — Clearing the Board (`O_TRUNC`)
 
+Changes compared to Part 4:
+
+```diff
+@@ -35,6 +35,7 @@
+             let shared = Arc::pin_init(
+                 try_pin_init!(SharedState {
+                     inner <- new_mutex!(Inner {
++                        base: 0,
+                         messages: KVec::new(),
+                     }),
+                     condvar <- new_condvar!(),
+@@ -61,6 +62,7 @@
+ }
+ 
+ struct Inner {
++    base: usize,
+     messages: KVec<KVec<u8>>,
+ }
+ 
+@@ -98,6 +100,12 @@
+ 
+         dev_info!(dev, "Opening Rust Message Board\n");
+ 
++        if (file.flags() & flags::O_TRUNC) != 0 {
++            let mut inner = misc.shared.inner.lock();
++            inner.base += inner.messages.len();
++            inner.messages.clear();
++        }
++
+         KBox::try_pin_init(
+             try_pin_init!(RustMessageBoardFile {
+                 shared: Arc::clone(&misc.shared),
+@@ -114,16 +122,23 @@
+ 
+         let mut cursor = me.cursor.lock();
+         let mut inner = me.shared.inner.lock();
+-        while *cursor >= inner.messages.len() {
++        let msg = loop {
++            if *cursor < inner.base {
++                *cursor = inner.base;
++            }
++            let idx = *cursor - inner.base;
++            if let Some(msg) = inner.messages.get(idx) {
++                break msg;
++            }
+             if me.nonblock {
+                 return Err(EAGAIN);
+             }
+             if me.shared.condvar.wait_interruptible(&mut inner) {
+                 return Err(ERESTARTSYS);
+             }
+-        }
++        };
+ 
+-        let written = iov.copy_to_iter(&inner.messages[*cursor]);
++        let written = iov.copy_to_iter(msg);
+         *cursor += 1;
+         Ok(written)
+     }
+```
+
+Complete solution:
+
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
+#![allow(unused_variables, unused_imports, dead_code)]
 
-//! Rust message board character device solution.
+//! Rust message board character device.
 
 use kernel::{
     device::Device,
@@ -41,7 +105,7 @@ struct RustMessageBoardModule {
 impl kernel::InPlaceModule for RustMessageBoardModule {
     fn init(_module: &'static ThisModule) -> impl PinInit<Self, Error> {
         pin_init::pin_init_scope(move || {
-            pr_info!("Initializing Rust Message Board\n");
+            pr_info!("Initialising Rust Message Board\n");
 
             let shared = Arc::pin_init(
                 try_pin_init!(SharedState {
@@ -85,11 +149,13 @@ struct SharedState {
     condvar: CondVar,
 }
 
+/// Data shared by all open files for the same instance of this miscdevice.
 #[pin_data]
 struct RustMessageBoard {
     shared: Arc<SharedState>,
 }
 
+/// Data that is stored per file for this miscdevice.
 #[pin_data(PinnedDrop)]
 struct RustMessageBoardFile {
     shared: Arc<SharedState>,
@@ -106,6 +172,8 @@ impl MiscDevice for RustMessageBoard {
     fn open(file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
         let dev = ARef::from(misc.device());
         let nonblock = (file.flags() & flags::O_NONBLOCK) != 0;
+
+        dev_info!(dev, "Opening Rust Message Board\n");
 
         if (file.flags() & flags::O_TRUNC) != 0 {
             let mut inner = misc.shared.inner.lock();

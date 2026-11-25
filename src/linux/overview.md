@@ -26,7 +26,7 @@ The architecture separates unsafe C FFI boundaries from safe kernel module code:
 3. **Safe Abstractions (`kernel` crate):**  
    The core `kernel` crate wraps the unsafe C FFI in idiomatic, safe Rust types (`ARef`, `KBox`, `Mutex`, `pin-init`, and driver traits). Every `unsafe` block inside the `kernel` crate must document its safety preconditions.
 4. **Safe Rust Drivers:**  
-   Kernel modules and drivers are written against the safe `kernel` crate abstractions, allowing developers to write robust kernel code without `unsafe` blocks.
+   Kernel modules and drivers are written against the safe `kernel` crate abstractions, allowing developers to write robust kernel code that avoids `unsafe`.
 
 <details>
 

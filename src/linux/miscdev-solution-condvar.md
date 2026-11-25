@@ -9,11 +9,64 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Solution: Part 3 — Live Streaming with `CondVar`
 
+Changes compared to Part 2:
+
+```diff
+@@ -37,6 +37,7 @@
+                     inner <- new_mutex!(Inner {
+                         messages: KVec::new(),
+                     }),
++                    condvar <- new_condvar!(),
+                 }),
+                 GFP_KERNEL,
+             )?;
+@@ -67,6 +68,8 @@
+ struct SharedState {
+     #[pin]
+     inner: Mutex<Inner>,
++    #[pin]
++    condvar: CondVar,
+ }
+ 
+ /// Data shared by all open files for the same instance of this miscdevice.
+@@ -107,9 +110,11 @@
+         let me = kiocb.file();
+ 
+         let mut cursor = me.cursor.lock();
+-        let inner = me.shared.inner.lock();
+-        if *cursor >= inner.messages.len() {
+-            return Ok(0);
++        let mut inner = me.shared.inner.lock();
++        while *cursor >= inner.messages.len() {
++            if me.shared.condvar.wait_interruptible(&mut inner) {
++                return Err(ERESTARTSYS);
++            }
+         }
+ 
+         let written = iov.copy_to_iter(&inner.messages[*cursor]);
+@@ -129,8 +134,11 @@
+             return Ok(0);
+         }
+ 
+-        let mut inner = me.shared.inner.lock();
+-        inner.messages.push(msg, GFP_KERNEL)?;
++        {
++            let mut inner = me.shared.inner.lock();
++            inner.messages.push(msg, GFP_KERNEL)?;
++        }
++        me.shared.condvar.notify_all();
+ 
+         Ok(len)
+     }
+```
+
+Complete solution:
+
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
 #![allow(unused_variables, unused_imports, dead_code)]
 
-//! Rust message board character device (Milestone 3: CondVar live streaming).
+//! Rust message board character device.
 
 use kernel::{
     device::Device,
@@ -42,7 +95,7 @@ struct RustMessageBoardModule {
 impl kernel::InPlaceModule for RustMessageBoardModule {
     fn init(_module: &'static ThisModule) -> impl PinInit<Self, Error> {
         pin_init::pin_init_scope(move || {
-            pr_info!("Initializing Rust Message Board\n");
+            pr_info!("Initialising Rust Message Board\n");
 
             let shared = Arc::pin_init(
                 try_pin_init!(SharedState {
@@ -84,11 +137,13 @@ struct SharedState {
     condvar: CondVar,
 }
 
+/// Data shared by all open files for the same instance of this miscdevice.
 #[pin_data]
 struct RustMessageBoard {
     shared: Arc<SharedState>,
 }
 
+/// Data that is stored per file for this miscdevice.
 #[pin_data(PinnedDrop)]
 struct RustMessageBoardFile {
     shared: Arc<SharedState>,
@@ -103,6 +158,8 @@ impl MiscDevice for RustMessageBoard {
 
     fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
         let dev = ARef::from(misc.device());
+
+        dev_info!(dev, "Opening Rust Message Board\n");
 
         KBox::try_pin_init(
             try_pin_init!(RustMessageBoardFile {

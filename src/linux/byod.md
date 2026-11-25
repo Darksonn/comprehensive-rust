@@ -9,13 +9,13 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Exercise: Build Your Own Driver
 
-First, make sure your `~/learn-rust/linux` checkout is up to date on the `rfl-course-edu` branch and that DRM and the afternoon sample driver are enabled in your `.config` (see [Setup](setup.md) for full details):
+First, update your `~/learn-rust/linux` checkout to the latest `rfl-course-edu`
+branch (see [Setup](setup.md)):
+
+<!-- mdbook-xgettext: skip -->
 
 ```bash
-cd ~/learn-rust/linux
-git pull
-./scripts/config --enable CONFIG_DRM
-./scripts/config --module SAMPLE_RUST_DRIVER_PCI_EDU_DRM
+cd ~/learn-rust/linux && git fetch origin && git reset --hard origin/rfl-course-edu
 ```
 
 **Part 1:** Define your own module and build it.
@@ -45,6 +45,8 @@ creates the `KVec<i32>` value. Include it in your module using `mod numbers;` in
 `rust_alice.rs` to build a multi-file driver:
 
 ```rust,ignore
+use kernel::prelude::*;
+
 pub(crate) fn my_numbers() -> Result<KVec<i32>> {
     let mut numbers = KVec::new();
     numbers.push(72, GFP_KERNEL)?;

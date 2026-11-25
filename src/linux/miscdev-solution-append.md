@@ -9,13 +9,44 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Solution: Part 1 — Append Instead of Overwrite
 
-Removing `inner.buffer.clear()` makes `iov.copy_from_iter_vec()` append each incoming write onto `inner.buffer`:
+Removing `inner.buffer.clear()` makes `iov.copy_from_iter_vec()` append each incoming write onto `inner.buffer`.
+
+Changes compared to the starter stub:
+
+```diff
+@@ -1,7 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0
+ #![allow(unused_variables, unused_imports, dead_code)]
+ 
+-//! Rust message board character device exercise starter stub.
++//! Rust message board character device.
+ 
+ use kernel::{
+     device::Device,
+@@ -109,13 +109,11 @@
+         Ok(read)
+     }
+ 
+-    fn write_iter(mut kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterSource<'_>) -> Result<usize> {
++    fn write_iter(kiocb: Kiocb<'_, Self::File>, iov: &mut IovIterSource<'_>) -> Result<usize> {
+         let me = kiocb.file();
+ 
+         let mut inner = me.shared.inner.lock();
+-        inner.buffer.clear();
+         let len = iov.copy_from_iter_vec(&mut inner.buffer, GFP_KERNEL)?;
+-        *kiocb.ki_pos_mut() = 0;
+ 
+         Ok(len)
+     }
+```
+
+Complete solution:
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0
 #![allow(unused_variables, unused_imports, dead_code)]
 
-//! Rust message board character device (Milestone 1: append).
+//! Rust message board character device.
 
 use kernel::{
     device::Device,
@@ -44,7 +75,7 @@ struct RustMessageBoardModule {
 impl kernel::InPlaceModule for RustMessageBoardModule {
     fn init(_module: &'static ThisModule) -> impl PinInit<Self, Error> {
         pin_init::pin_init_scope(move || {
-            pr_info!("Initializing Rust Message Board\n");
+            pr_info!("Initialising Rust Message Board\n");
 
             let shared = Arc::pin_init(
                 try_pin_init!(SharedState {
@@ -83,11 +114,13 @@ struct SharedState {
     inner: Mutex<Inner>,
 }
 
+/// Data shared by all open files for the same instance of this miscdevice.
 #[pin_data]
 struct RustMessageBoard {
     shared: Arc<SharedState>,
 }
 
+/// Data that is stored per file for this miscdevice.
 #[pin_data(PinnedDrop)]
 struct RustMessageBoardFile {
     shared: Arc<SharedState>,
@@ -100,6 +133,8 @@ impl MiscDevice for RustMessageBoard {
 
     fn open(_file: &File, misc: &MiscDeviceRegistration<Self>) -> Result<Self::File> {
         let dev = ARef::from(misc.device());
+
+        dev_info!(dev, "Opening Rust Message Board\n");
 
         KBox::try_pin_init(
             try_pin_init!(RustMessageBoardFile {

@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC-BY-4.0
 # Mutex Guards
 
 ```rust,ignore
-impl RustMiscDevice {
+impl RustMiscDeviceFile {
     fn set_value(&self, mut reader: UserSliceReader) -> Result<isize> {
         let new_value = reader.read::<i32>()?;
         let mut guard = self.inner.lock();
@@ -24,7 +24,7 @@ impl RustMiscDevice {
 ```
 
 ```c
-static long set_value(struct rust_misc_device *dev, const char __user *buf)
+static long set_value(struct rust_misc_device_file *dev, const char __user *buf)
 {
     int new_value;
 

@@ -57,7 +57,7 @@ let reg_data = try_pin_init!(TestDrmData {
   - Because Rust drops struct fields in declaration order, `_irq` is declared **before** `vectors` and `bar` so the IRQ handler is unregistered (`free_irq`) before the vectors are freed or the BAR is unmapped.
   - Inside `try_pin_init!`, fields can be initialized in dependency order (`bar` and `vectors` first, then `_irq` borrowing them).
 - **Interrupt Context Rules (`handle(&self)`):**
-  - Runs in **atomic / hardirq context**: never sleep, never lock a `Mutex`, never allocate with `GFP_KERNEL`. Use `SpinLock` or atomics if you need to mutate shared state.
+  - Runs in **atomic / hardirq context**: never sleep, never lock a `Mutex`, never allocate with `GFP_KERNEL`. Use `SpinLockIrq` or atomics if you need to mutate state shared with process context (a plain `SpinLock` deadlocks if the interrupt arrives while process context holds it).
   - Return `IrqReturn::Handled` if our device raised the interrupt, or `IrqReturn::None` if the interrupt line is shared and our device's status register is `0`.
 - **Why `irq::Registration::new` is `unsafe`:** If the caller leaked (`mem::forget`) the `irq::Registration` instead of dropping it before PCI `unbind`, the kernel would keep a dangling pointer to `TestIrqHandler` past `'bound`. When dropped normally, `irq::Registration` calls `free_irq()`, which waits for any running ISR to finish before returning.
 

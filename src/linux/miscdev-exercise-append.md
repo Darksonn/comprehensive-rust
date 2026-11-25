@@ -13,10 +13,11 @@ Inspect the shared-buffer starter stub at [`samples/rust/rust_message_board.rs`]
 
 Right now, every `write_iter()` clears the shared buffer and resets the file offset, so each new write overwrites the previous message.
 
-## Tasks
+## Task
 
-1. In `write_iter()`, remove `inner.buffer.clear()` so incoming writes append to `inner.buffer`.
-2. Remove `*kiocb.ki_pos_mut() = 0;` and change `mut kiocb` to `kiocb` in `write_iter()`.
+Change `write_iter()` so that each write is appended to the shared buffer instead of replacing its contents.
+
+**Help:** Check the documentation of [`IovIterSource::copy_from_iter_vec`](https://rust.docs.kernel.org/kernel/iov/struct.IovIterSource.html#method.copy_from_iter_vec).
 
 ## Testing in QEMU
 
@@ -27,9 +28,9 @@ Build the module and test that multiple writes accumulate:
 make LLVM=1 samples/rust/rust_message_board.ko
 
 # Inside QEMU:
-insmod /mnt/linux/samples/rust/rust_message_board.ko
-echo "hello" > /dev/rust-message-board
-echo "world" > /dev/rust-message-board
+rmmod rust_message_board 2>/dev/null; insmod /mnt/linux/samples/rust/rust_message_board.ko
+echo "hello" >> /dev/rust-message-board
+echo "world" >> /dev/rust-message-board
 cat /dev/rust-message-board
 # Output:
 # hello

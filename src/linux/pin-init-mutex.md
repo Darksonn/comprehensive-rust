@@ -14,10 +14,10 @@ The same self-referential problem occurs with kernel synchronization primitives.
 In C, `mutex_init` does not return a mutex by value. Instead, it takes an **out-pointer** to initialize the mutex directly in its final memory location:
 
 ```c
-// WRONG:
+// What you might expect:
 struct mutex mutex_init();
 
-// CORRECT:
+// Actual API:
 void mutex_init(struct mutex *lock);
 ```
 
@@ -52,6 +52,8 @@ Moving the struct into a heap allocation (`KBox`) or struct field invalidates th
 
 - Highlight the signature: C constructors in the kernel almost always take an out-pointer `struct mutex *lock` rather than returning a value.
 - Moving in memory after `mutex_init` is undefined behavior in C and crashes the kernel.
+- **Simplification:** Recent kernels (v7.4) no longer embed `struct list_head wait_list` in `struct mutex`; it now holds `struct mutex_waiter *first_waiter` (`include/linux/mutex_types.h`), so the self-pointing list head is the picture from older kernels.
+- A mutex still must not move: with `CONFIG_DEBUG_MUTEXES`, `lock->magic` points at the lock itself (checked by `MUTEX_WARN_ON(lock->magic != lock)`), and sleeping waiters on other tasks' stacks reference the mutex by address.
 - This is the core motivation for `pin-init`: initializing structs directly into their destination memory.
 
 </details>

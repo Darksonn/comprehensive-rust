@@ -21,12 +21,12 @@ To ensure compatibility without conflicting with host package managers, download
 
 ```bash
 # Download and extract the prebuilt LLVM + Rust toolchain:
-curl -O https://mirrors.edge.kernel.org/pub/tools/llvm/rust/files/llvm-22.1.6-rust-1.97.0-x86_64.tar.xz
-sha256sum llvm-22.1.6-rust-1.97.0-x86_64.tar.xz
-tar xvf llvm-22.1.6-rust-1.97.0-x86_64.tar.xz
+curl -O https://mirrors.edge.kernel.org/pub/tools/llvm/rust/files/llvm-23.1.6-rust-1.100.0-x86_64.tar.xz
+echo "e9a19b6527db9fba0d5ba1382b09bcc7eb936db59adfa546f14fe77b5aa6eb87  llvm-23.1.6-rust-1.100.0-x86_64.tar.xz" | sha256sum -c
+tar xvf llvm-23.1.6-rust-1.100.0-x86_64.tar.xz
 
 # Add the toolchain binaries and libclang to your environment:
-llvm_prefix=$(realpath llvm-22.1.6-rust-1.97.0-x86_64)
+llvm_prefix=$(realpath llvm-23.1.6-rust-1.100.0-x86_64)
 export PATH=$llvm_prefix/bin:$PATH
 export LIBCLANG_PATH=$llvm_prefix/lib/libclang.so
 cargo install --force --locked --root $llvm_prefix bindgen-cli --version 0.72.1
