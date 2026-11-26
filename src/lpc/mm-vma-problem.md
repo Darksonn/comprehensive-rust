@@ -37,7 +37,7 @@ impl VmaMixedMap {
 
 - Look at the types in [`rust/kernel/mm/virt.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/rust/kernel/mm/virt.rs):
   - `vma_lookup(vma_addr)` (and `lock_vma_under_rcu(vma_addr)`) can return **any** VMA in the process's address space—anonymous memory, a file mapping, or another driver's VMA.
-  - Yet `VmaRef` exposes `zap_vma_range` and `as_mixedmap_vma` $\to$ `vm_insert_page` as **safe** methods on *any* `&VmaRef`!
+  - Yet `VmaRef` exposes `zap_vma_range` and `as_mixedmap_vma` → `vm_insert_page` as **safe** methods on *any* `&VmaRef`!
 - Why is this a soundness / encapsulation flaw in `virt.rs`?
   - Holding the mmap read lock and checking `VM_MIXEDMAP` is **not** enough to allow arbitrary code to insert pages into or zap pages from a foreign VMA.
   - Another subsystem's `VM_MIXEDMAP` VMA may rely on invariants about which pages are mapped in its VMA.

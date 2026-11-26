@@ -52,7 +52,8 @@ let reg_data = try_pin_init!(TestDrmData {
 
 <details>
 
-- **Self-referential `#[pin_data]` lifetimes (`'vectors`, `'bar`):**
+- **Self-referential `#[pin_data]` field lifetimes (`'vectors`, `'bar`):**
+  - `#[pin_data]` synthesizes a field lifetime for each field (named `'vectors` and `'bar` after the `vectors` and `bar` fields—which is why they don't appear in `TestDrmData<'drm>`'s generic parameter list).
   - `_irq` borrows `vectors` (via `'vectors`) and `bar` (via `'bar`) inside the same pinned `TestDrmData` struct.
   - Because Rust drops struct fields in declaration order, `_irq` is declared **before** `vectors` and `bar` so the IRQ handler is unregistered (`free_irq`) before the vectors are freed or the BAR is unmapped.
   - Inside `try_pin_init!`, fields can be initialized in dependency order (`bar` and `vectors` first, then `_irq` borrowing them).

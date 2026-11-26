@@ -47,12 +47,12 @@ unsafe impl AlwaysRefCounted for Credential {
 - Walk through the building blocks of wrapping a C struct in `rust/kernel/`:
   1. **`#[repr(transparent)]` & `Opaque<bindings::cred>`:**
      - `Opaque<T>` tells Rust that the memory is managed by C (may contain uninitialized padding, interior mutability, or pinned fields) and provides `.get() -> *mut T`.
-     - `#[repr(transparent)]` guarantees `Credential` has the exact same layout as `struct cred`, making pointer casts (`*const bindings::cred` $\leftrightarrow$ `*const Credential`) sound.
+     - `#[repr(transparent)]` guarantees `Credential` has the exact same layout as `struct cred`, making pointer casts (`*const bindings::cred` ↔ `*const Credential`) sound.
   2. **Thread safety (`Send` and `Sync`):**
      - Raw C structs do not automatically implement `Send` or `Sync`; the abstraction author explicitly opts in with `unsafe impl` and a `// SAFETY:` justification.
   3. **Safe methods (`euid`):**
      - Reading `euid` is safe without locking because `struct cred` follows RCU/copy-on-write semantics and is immutable once published.
-  4. **Reference counting (`AlwaysRefCounted` $\to$ `ARef<Credential>`):**
+  4. **Reference counting (`AlwaysRefCounted` → `ARef<Credential>`):**
      - Implementing `AlwaysRefCounted` hooks C's `get_cred`/`put_cred` into Rust's `ARef<Credential>` smart pointer.
 
 </details>

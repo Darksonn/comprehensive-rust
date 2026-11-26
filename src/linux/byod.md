@@ -22,10 +22,13 @@ cd ~/learn-rust/linux && git fetch origin && git reset --hard origin/rfl-course-
 
 1. Create a folder called `drivers/<your name>/`. In this example we will use
    `drivers/alice/`.
-2. Create `drivers/alice/Kconfig` with a config option (`CONFIG_RUST_ALICE`) for
-   your driver, and add `source "drivers/alice/Kconfig"` to `drivers/Kconfig`.
-3. Create `drivers/alice/Makefile` with a line to build your new driver, and
-   add `obj-y += alice/` to `drivers/Makefile`.
+2. Add a Kconfig entry for your driver:
+   - Create `drivers/alice/Kconfig` with a config option (`config RUST_ALICE`)
+     for your driver.
+   - Add `source "drivers/alice/Kconfig"` to `drivers/Kconfig`.
+3. Wire your driver into kbuild:
+   - Create `drivers/alice/Makefile` with a line to build your new driver.
+   - Add `obj-y += alice/` to `drivers/Makefile`.
 4. Define a `drivers/alice/rust_alice.rs` file containing a Rust module (using
    [`samples/rust/rust_minimal.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/samples/rust/rust_minimal.rs)
    as a starting point).

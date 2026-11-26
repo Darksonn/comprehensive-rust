@@ -23,7 +23,7 @@ In the afternoon session of Day 2, we dive into hardware events and write a full
 
 <details>
 
-- Introduce platform buses and interacting with hardware described by device trees.
-- Discuss future directions and contributing to upstream Rust for Linux.
+- Build incrementally on the minimal DRM PCI driver from Day 2 Morning by adding real MMIO register access (`register!`), sleeping I/O polling (`read_poll_timeout`), and MSI interrupt handling (`irq::Handler`).
+- Leave time at the end to wrap up and discuss upstream Rust for Linux status and contributing.
 
 </details>

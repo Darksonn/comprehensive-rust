@@ -12,11 +12,19 @@ SPDX-License-Identifier: CC-BY-4.0
 [`include/linux/cred.h`](https://github.com/Darksonn/linux/blob/rfl-course-edu/include/linux/cred.h):
 
 ```c
+static inline const struct cred *get_cred_many(const struct cred *cred, int nr)
+{
+    struct cred *nonconst_cred = (struct cred *) cred;
+    if (!cred)
+        return cred;
+    nonconst_cred->non_rcu = 0;
+    atomic_long_add(nr, &nonconst_cred->usage);
+    return cred;
+}
+
 static inline const struct cred *get_cred(const struct cred *cred)
 {
-    if (cred)
-        atomic_long_inc(&((struct cred *)cred)->usage);
-    return cred;
+    return get_cred_many(cred, 1);
 }
 ```
 

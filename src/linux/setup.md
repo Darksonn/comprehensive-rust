@@ -199,6 +199,8 @@ qemu-system-x86_64 \
     -device edu
 ```
 
+> **Note:** If you get a `Permission denied` error on `/dev/kvm`, either add your user to the `kvm` group (`sudo usermod -aG kvm "$USER"`, then start a new login shell or run `newgrp kvm`) or run `qemu-system-x86_64` with `sudo`.
+
 ## 5. Testing Inside the Virtual Machine
 
 Once booted, QEMU automatically logs you into a `root@debian-vm:~#` prompt on the serial console. Your host workspace is automatically mounted at `/mnt` via `/etc/fstab`:

@@ -20,8 +20,8 @@ The QEMU `edu` device has the following register specifications for interrupts:
 *   **`IRQ_STATUS`** (Offset `0x24`, RO, 32-bit): Read pending interrupt status.
 *   **`IRQ_RAISE`** (Offset `0x60`, WO, 32-bit): Write any value here to raise an interrupt (MSI) for testing.
 *   **`IRQ_ACKNOWLEDGE`** (Offset `0x64`, WO, 32-bit): Write the pending interrupt value back to clear/acknowledge it.
-*   **`STATUS`** (Offset `0x20`, RO, 32-bit):
-    *   Bit 7: `1` if an interrupt is raised.
+*   **`STATUS`** (Offset `0x20`, RW, 32-bit):
+    *   Bit 7 (`0x80`): Set to `1` to raise an interrupt after finishing factorial computation.
 
 ---
 
@@ -64,13 +64,25 @@ The QEMU `edu` device has the following register specifications for interrupts:
 
 ## Testing
 
-Update your `test_edu.c` program on your host machine to support the new `irq` command, recompile it statically, and copy it to the VM.
+Update your `~/learn-rust/test_edu.c` program on your host machine to support the new `irq` command (see [`include/uapi/drm/qemu_edu_drm.h`](https://github.com/Darksonn/linux/blob/rfl-course-edu/include/uapi/drm/qemu_edu_drm.h)), recompile it statically on the host, and run it via `/mnt` inside QEMU:
 
-Then test the interrupt handling:
+```c
+struct drm_edu_test_irq {
+    __u32 val;
+};
+
+#define DRM_EDU_TEST_IRQ  0x03
+#define DRM_IOCTL_EDU_TEST_IRQ DRM_IOW(DRM_COMMAND_BASE + DRM_EDU_TEST_IRQ, struct drm_edu_test_irq)
+```
+
+Then compile on the host and test the interrupt handling inside QEMU:
 
 ```bash
-# Trigger an interrupt with value 0x42:
-./test_edu irq 0x42
+# On the host, in ~/learn-rust:
+gcc -static -o test_edu test_edu.c
+
+# Inside QEMU — trigger an interrupt with value 0x42:
+/mnt/test_edu irq 0x42
 
 # Check dmesg to verify the interrupt handler was executed:
 dmesg | tail -n 5

@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Solution: Interrupts
 
-You can find the full solution code below. This code can also be found in `samples/rust/rust_driver_pci_edu.rs`.
+You can find the full solution code below. This code can also be found in [`samples/rust/rust_driver_pci_edu.rs`](https://github.com/Darksonn/linux/blob/rfl-course-edu/samples/rust/rust_driver_pci_edu.rs).
 
 ```rust,ignore
 // SPDX-License-Identifier: GPL-2.0

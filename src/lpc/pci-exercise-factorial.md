@@ -38,7 +38,7 @@ The QEMU `edu` device has the following register specifications for this exercis
 
 ## Testing
 
-Update your `test_edu.c` program on your host machine to support the new `fact` command (similar to how `live` was implemented; see [`include/uapi/drm/qemu_edu_drm.h`](https://github.com/Darksonn/linux/blob/rfl-course-edu/include/uapi/drm/qemu_edu_drm.h)), recompile it statically, and copy it to the VM:
+Update your `~/learn-rust/test_edu.c` program on your host machine to support the new `fact` command (similar to how `live` was implemented; see [`include/uapi/drm/qemu_edu_drm.h`](https://github.com/Darksonn/linux/blob/rfl-course-edu/include/uapi/drm/qemu_edu_drm.h)), recompile it statically on the host, and run it via `/mnt` inside QEMU:
 
 ```c
 struct drm_edu_compute_factorial {
@@ -50,12 +50,13 @@ struct drm_edu_compute_factorial {
 #define DRM_IOCTL_EDU_COMPUTE_FACTORIAL DRM_IOWR(DRM_COMMAND_BASE + DRM_EDU_COMPUTE_FACTORIAL, struct drm_edu_compute_factorial)
 ```
 
-Then test the new functionality:
+Then compile on the host and test inside QEMU:
 
 ```bash
-# Compute factorial of 5 (expects 120):
-./test_edu fact 5
+# On the host, in ~/learn-rust:
+gcc -static -o test_edu test_edu.c
 
-# Compute factorial of 10 (expects 3628800):
-./test_edu fact 10
+# Inside QEMU — compute factorial of 5 (expects 120) and 10 (expects 3628800):
+/mnt/test_edu fact 5
+/mnt/test_edu fact 10
 ```
